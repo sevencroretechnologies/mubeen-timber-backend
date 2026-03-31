@@ -52,14 +52,6 @@ class User extends Authenticatable
     }
 
     /**
-     * Get the staff member profile associated with this user.
-     */
-    public function staffMember()
-    {
-        return $this->hasOne(StaffMember::class);
-    }
-
-    /**
      * Get the organization associated with this user.
      */
     public function organization()

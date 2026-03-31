@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\Company;
+use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -28,7 +30,16 @@ class DatabaseSeeder extends Seeder
             TaskTypeSeeder::class,
         ]);
 
+        // Create default Organization and Company
+        $org = Organization::firstOrCreate(
+            ['name' => 'Timber Traders Pvt Ltd'],
+            ['address' => 'Industrial Area Phase-2, Chandigarh']
+        );
 
+        $company = Company::firstOrCreate(
+            ['company_name' => 'Timber Traders - Main', 'org_id' => $org->id],
+            ['address' => 'Plot 45, Industrial Area Phase-2, Chandigarh']
+        );
 
         // Create Super Admin user
         $admin = User::firstOrCreate(
@@ -37,6 +48,8 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Super Admin',
                 'password' => Hash::make('password'),
                 'is_active' => true,
+                'org_id' => $org->id,
+                'company_id' => $company->id,
             ]
         );
         $admin->assignRole('admin');
@@ -48,6 +61,8 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Sarah Johnson',
                 'password' => Hash::make('password'),
                 'is_active' => true,
+                'org_id' => $org->id,
+                'company_id' => $company->id,
             ]
         );
         $salesManager->assignRole('company');
@@ -59,11 +74,16 @@ class DatabaseSeeder extends Seeder
                 'name' => 'John Smith',
                 'password' => Hash::make('password'),
                 'is_active' => true,
+                'org_id' => $org->id,
+                'company_id' => $company->id,
             ]
         );
         $salesRep->assignRole('user');
 
         // Seed Timber demo data
         $this->call(TimberDemoSeeder::class);
+
+        // Seed CRM demo data (leads, customers, opportunities, etc.)
+        $this->call(CrmDemoSeeder::class);
     }
 }

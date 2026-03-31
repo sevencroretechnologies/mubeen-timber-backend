@@ -89,10 +89,10 @@ class TimberDemoSeeder extends Seeder
         // Warehouses
         // ============================================
         $warehouses = [
-            ['name' => 'Main Warehouse', 'location' => 'Plot 45, Industrial Area Phase-2, Chandigarh', 'is_default' => true],
-            ['name' => 'Timber Yard - North', 'location' => 'NH-21, Near Pinjore, Haryana', 'is_default' => false],
-            ['name' => 'Finished Goods Store', 'location' => 'Sector 26, Chandigarh', 'is_default' => false],
-            ['name' => 'Raw Material Depot', 'location' => 'Barwala Road, Panchkula', 'is_default' => false],
+            ['name' => 'Main Warehouse', 'code' => 'WH-MAIN', 'address' => 'Plot 45, Industrial Area Phase-2', 'city' => 'Chandigarh', 'is_default' => true],
+            ['name' => 'Timber Yard - North', 'code' => 'WH-NORTH', 'address' => 'NH-21, Near Pinjore', 'city' => 'Haryana', 'is_default' => false],
+            ['name' => 'Finished Goods Store', 'code' => 'WH-FGS', 'address' => 'Sector 26', 'city' => 'Chandigarh', 'is_default' => false],
+            ['name' => 'Raw Material Depot', 'code' => 'WH-RMD', 'address' => 'Barwala Road', 'city' => 'Panchkula', 'is_default' => false],
         ];
 
         $createdWarehouses = [];
@@ -109,18 +109,19 @@ class TimberDemoSeeder extends Seeder
         // Stock Ledger & Movements (initial stock)
         // ============================================
         $stockData = [
-            ['wood_type_idx' => 0, 'warehouse_idx' => 0, 'qty' => 150.00, 'rate' => 2500.00, 'threshold' => 50],
-            ['wood_type_idx' => 1, 'warehouse_idx' => 0, 'qty' => 200.00, 'rate' => 1800.00, 'threshold' => 80],
-            ['wood_type_idx' => 2, 'warehouse_idx' => 0, 'qty' => 80.00, 'rate' => 2200.00, 'threshold' => 30],
-            ['wood_type_idx' => 3, 'warehouse_idx' => 1, 'qty' => 300.00, 'rate' => 1500.00, 'threshold' => 100],
-            ['wood_type_idx' => 4, 'warehouse_idx' => 1, 'qty' => 500.00, 'rate' => 800.00, 'threshold' => 200],
-            ['wood_type_idx' => 5, 'warehouse_idx' => 0, 'qty' => 120.00, 'rate' => 1200.00, 'threshold' => 40],
-            ['wood_type_idx' => 6, 'warehouse_idx' => 2, 'qty' => 25.00, 'rate' => 1000.00, 'threshold' => 50],
-            ['wood_type_idx' => 7, 'warehouse_idx' => 2, 'qty' => 60.00, 'rate' => 900.00, 'threshold' => 30],
-            ['wood_type_idx' => 8, 'warehouse_idx' => 3, 'qty' => 400.00, 'rate' => 45.00, 'threshold' => 150],
-            ['wood_type_idx' => 9, 'warehouse_idx' => 3, 'qty' => 250.00, 'rate' => 35.00, 'threshold' => 100],
+            ['wood_type_idx' => 0, 'warehouse_idx' => 0, 'qty' => 150.00, 'rate' => 2500.00, 'min_threshold' => 50, 'max_threshold' => 500],
+            ['wood_type_idx' => 1, 'warehouse_idx' => 0, 'qty' => 200.00, 'rate' => 1800.00, 'min_threshold' => 80, 'max_threshold' => 600],
+            ['wood_type_idx' => 2, 'warehouse_idx' => 0, 'qty' => 80.00, 'rate' => 2200.00, 'min_threshold' => 30, 'max_threshold' => 300],
+            ['wood_type_idx' => 3, 'warehouse_idx' => 1, 'qty' => 300.00, 'rate' => 1500.00, 'min_threshold' => 100, 'max_threshold' => 800],
+            ['wood_type_idx' => 4, 'warehouse_idx' => 1, 'qty' => 500.00, 'rate' => 800.00, 'min_threshold' => 200, 'max_threshold' => 1000],
+            ['wood_type_idx' => 5, 'warehouse_idx' => 0, 'qty' => 120.00, 'rate' => 1200.00, 'min_threshold' => 40, 'max_threshold' => 400],
+            ['wood_type_idx' => 6, 'warehouse_idx' => 2, 'qty' => 25.00, 'rate' => 1000.00, 'min_threshold' => 50, 'max_threshold' => 300],
+            ['wood_type_idx' => 7, 'warehouse_idx' => 2, 'qty' => 60.00, 'rate' => 900.00, 'min_threshold' => 30, 'max_threshold' => 200],
+            ['wood_type_idx' => 8, 'warehouse_idx' => 3, 'qty' => 400.00, 'rate' => 45.00, 'min_threshold' => 150, 'max_threshold' => 1000],
+            ['wood_type_idx' => 9, 'warehouse_idx' => 3, 'qty' => 250.00, 'rate' => 35.00, 'min_threshold' => 100, 'max_threshold' => 800],
         ];
 
+        $createdLedgers = [];
         foreach ($stockData as $sd) {
             $woodType = $createdWoodTypes[$sd['wood_type_idx']];
             $warehouse = $createdWarehouses[$sd['warehouse_idx']];
@@ -132,26 +133,34 @@ class TimberDemoSeeder extends Seeder
                     'company_id' => $companyId,
                     'wood_type_id' => $woodType->id,
                     'warehouse_id' => $warehouse->id,
-                    'quantity' => $sd['qty'],
-                    'average_rate' => $sd['rate'],
-                    'minimum_threshold' => $sd['threshold'],
+                    'current_quantity' => $sd['qty'],
+                    'reserved_quantity' => 0,
+                    'minimum_threshold' => $sd['min_threshold'],
+                    'maximum_threshold' => $sd['max_threshold'],
+                    'last_restocked_at' => now()->subDays(rand(1, 10)),
                 ]
             );
+            $createdLedgers[$sd['wood_type_idx'] . '-' . $sd['warehouse_idx']] = $ledger;
 
             TimberStockMovement::firstOrCreate(
-                ['reference_number' => 'INIT-' . $woodType->code, 'company_id' => $companyId],
+                ['stock_ledger_id' => $ledger->id, 'reference_type' => 'manual', 'notes' => 'Opening stock balance'],
                 [
                     'org_id' => $orgId,
                     'company_id' => $companyId,
+                    'stock_ledger_id' => $ledger->id,
                     'wood_type_id' => $woodType->id,
                     'warehouse_id' => $warehouse->id,
-                    'movement_type' => 'IN',
+                    'movement_type' => 'in',
                     'quantity' => $sd['qty'],
-                    'rate' => $sd['rate'],
-                    'total_amount' => $sd['qty'] * $sd['rate'],
-                    'reference_type' => 'OPENING',
-                    'reference_number' => 'INIT-' . $woodType->code,
+                    'unit' => $woodType->unit,
+                    'reference_type' => 'manual',
+                    'reference_id' => null,
+                    'unit_cost' => $sd['rate'],
+                    'total_cost' => $sd['qty'] * $sd['rate'],
+                    'before_quantity' => 0,
+                    'after_quantity' => $sd['qty'],
                     'notes' => 'Opening stock balance',
+                    'movement_date' => now()->subDays(30),
                     'created_by' => $userId,
                 ]
             );
@@ -162,41 +171,41 @@ class TimberDemoSeeder extends Seeder
         // ============================================
         $purchaseOrders = [
             [
-                'supplier_idx' => 0, 'status' => 'received', 'po_number' => 'PO-2026-001',
+                'supplier_idx' => 0, 'warehouse_idx' => 0, 'status' => 'received', 'po_code' => 'PO-2026-001',
                 'items' => [
                     ['wood_type_idx' => 0, 'qty' => 50, 'rate' => 2450],
                     ['wood_type_idx' => 2, 'qty' => 30, 'rate' => 2150],
                 ],
             ],
             [
-                'supplier_idx' => 1, 'status' => 'sent', 'po_number' => 'PO-2026-002',
+                'supplier_idx' => 1, 'warehouse_idx' => 1, 'status' => 'ordered', 'po_code' => 'PO-2026-002',
                 'items' => [
                     ['wood_type_idx' => 3, 'qty' => 100, 'rate' => 1480],
                     ['wood_type_idx' => 4, 'qty' => 200, 'rate' => 780],
                 ],
             ],
             [
-                'supplier_idx' => 2, 'status' => 'draft', 'po_number' => 'PO-2026-003',
+                'supplier_idx' => 2, 'warehouse_idx' => 0, 'status' => 'draft', 'po_code' => 'PO-2026-003',
                 'items' => [
                     ['wood_type_idx' => 1, 'qty' => 75, 'rate' => 1780],
                 ],
             ],
             [
-                'supplier_idx' => 3, 'status' => 'received', 'po_number' => 'PO-2026-004',
+                'supplier_idx' => 3, 'warehouse_idx' => 3, 'status' => 'received', 'po_code' => 'PO-2026-004',
                 'items' => [
                     ['wood_type_idx' => 8, 'qty' => 200, 'rate' => 43],
                     ['wood_type_idx' => 9, 'qty' => 150, 'rate' => 33],
                 ],
             ],
             [
-                'supplier_idx' => 4, 'status' => 'sent', 'po_number' => 'PO-2026-005',
+                'supplier_idx' => 4, 'warehouse_idx' => 0, 'status' => 'ordered', 'po_code' => 'PO-2026-005',
                 'items' => [
                     ['wood_type_idx' => 5, 'qty' => 60, 'rate' => 1180],
                     ['wood_type_idx' => 6, 'qty' => 40, 'rate' => 980],
                 ],
             ],
             [
-                'supplier_idx' => 5, 'status' => 'partially_received', 'po_number' => 'PO-2026-006',
+                'supplier_idx' => 5, 'warehouse_idx' => 0, 'status' => 'partial_received', 'po_code' => 'PO-2026-006',
                 'items' => [
                     ['wood_type_idx' => 0, 'qty' => 80, 'rate' => 2480],
                     ['wood_type_idx' => 7, 'qty' => 50, 'rate' => 880],
@@ -206,21 +215,30 @@ class TimberDemoSeeder extends Seeder
 
         foreach ($purchaseOrders as $poData) {
             $supplier = $createdSuppliers[$poData['supplier_idx']];
-            $totalAmount = 0;
+            $warehouse = $createdWarehouses[$poData['warehouse_idx']];
+            $subtotal = 0;
             foreach ($poData['items'] as $item) {
-                $totalAmount += $item['qty'] * $item['rate'];
+                $subtotal += $item['qty'] * $item['rate'];
             }
+            $taxPercentage = 18.00;
+            $taxAmount = $subtotal * ($taxPercentage / 100);
+            $totalAmount = $subtotal + $taxAmount;
 
             $po = TimberPurchaseOrder::firstOrCreate(
-                ['po_number' => $poData['po_number'], 'company_id' => $companyId],
+                ['po_code' => $poData['po_code'], 'company_id' => $companyId],
                 [
                     'org_id' => $orgId,
                     'company_id' => $companyId,
                     'supplier_id' => $supplier->id,
-                    'po_number' => $poData['po_number'],
+                    'warehouse_id' => $warehouse->id,
+                    'po_code' => $poData['po_code'],
                     'status' => $poData['status'],
                     'order_date' => now()->subDays(rand(5, 30)),
-                    'expected_date' => now()->addDays(rand(5, 15)),
+                    'expected_delivery_date' => now()->addDays(rand(5, 15)),
+                    'received_date' => $poData['status'] === 'received' ? now()->subDays(rand(1, 5)) : null,
+                    'subtotal' => $subtotal,
+                    'tax_percentage' => $taxPercentage,
+                    'tax_amount' => $taxAmount,
                     'total_amount' => $totalAmount,
                     'notes' => 'Demo purchase order',
                     'created_by' => $userId,
@@ -229,17 +247,23 @@ class TimberDemoSeeder extends Seeder
 
             foreach ($poData['items'] as $item) {
                 $woodType = $createdWoodTypes[$item['wood_type_idx']];
+                $receivedQty = 0;
+                if ($poData['status'] === 'received') {
+                    $receivedQty = $item['qty'];
+                } elseif ($poData['status'] === 'partial_received') {
+                    $receivedQty = intval($item['qty'] * 0.5);
+                }
+
                 TimberPurchaseOrderItem::firstOrCreate(
                     ['purchase_order_id' => $po->id, 'wood_type_id' => $woodType->id],
                     [
-                        'org_id' => $orgId,
-                        'company_id' => $companyId,
                         'purchase_order_id' => $po->id,
                         'wood_type_id' => $woodType->id,
                         'quantity' => $item['qty'],
-                        'rate' => $item['rate'],
-                        'amount' => $item['qty'] * $item['rate'],
-                        'received_quantity' => $poData['status'] === 'received' ? $item['qty'] : ($poData['status'] === 'partially_received' ? intval($item['qty'] * 0.5) : 0),
+                        'received_quantity' => $receivedQty,
+                        'unit' => $woodType->unit,
+                        'unit_price' => $item['rate'],
+                        'total_price' => $item['qty'] * $item['rate'],
                     ]
                 );
             }
@@ -249,40 +273,43 @@ class TimberDemoSeeder extends Seeder
         // Material Requisitions
         // ============================================
         $requisitions = [
-            ['status' => 'approved', 'ref' => 'MR-2026-001', 'purpose' => 'Furniture manufacturing - Client order #A105', 'items' => [['wood_type_idx' => 0, 'qty' => 20], ['wood_type_idx' => 2, 'qty' => 15]]],
-            ['status' => 'pending', 'ref' => 'MR-2026-002', 'purpose' => 'Door frames production batch #12', 'items' => [['wood_type_idx' => 1, 'qty' => 40]]],
-            ['status' => 'approved', 'ref' => 'MR-2026-003', 'purpose' => 'Packaging material for export order', 'items' => [['wood_type_idx' => 4, 'qty' => 100], ['wood_type_idx' => 8, 'qty' => 50]]],
-            ['status' => 'rejected', 'ref' => 'MR-2026-004', 'purpose' => 'Excessive request - needs revision', 'items' => [['wood_type_idx' => 0, 'qty' => 200]]],
-            ['status' => 'issued', 'ref' => 'MR-2026-005', 'purpose' => 'Interior woodwork - Commercial project', 'items' => [['wood_type_idx' => 5, 'qty' => 30], ['wood_type_idx' => 9, 'qty' => 80]]],
+            ['status' => 'approved', 'ref' => 'MR-2026-001', 'priority' => 'high', 'notes' => 'Furniture manufacturing - Client order #A105', 'items' => [['wood_type_idx' => 0, 'qty' => 20], ['wood_type_idx' => 2, 'qty' => 15]]],
+            ['status' => 'pending', 'ref' => 'MR-2026-002', 'priority' => 'normal', 'notes' => 'Door frames production batch #12', 'items' => [['wood_type_idx' => 1, 'qty' => 40]]],
+            ['status' => 'approved', 'ref' => 'MR-2026-003', 'priority' => 'normal', 'notes' => 'Packaging material for export order', 'items' => [['wood_type_idx' => 4, 'qty' => 100], ['wood_type_idx' => 8, 'qty' => 50]]],
+            ['status' => 'rejected', 'ref' => 'MR-2026-004', 'priority' => 'low', 'notes' => 'Excessive request - needs revision', 'rejection_reason' => 'Quantity exceeds available stock. Please revise.', 'items' => [['wood_type_idx' => 0, 'qty' => 200]]],
+            ['status' => 'issued', 'ref' => 'MR-2026-005', 'priority' => 'urgent', 'notes' => 'Interior woodwork - Commercial project', 'items' => [['wood_type_idx' => 5, 'qty' => 30], ['wood_type_idx' => 9, 'qty' => 80]]],
         ];
 
         foreach ($requisitions as $mrData) {
             $mr = TimberMaterialRequisition::firstOrCreate(
-                ['requisition_number' => $mrData['ref'], 'company_id' => $companyId],
+                ['requisition_code' => $mrData['ref'], 'company_id' => $companyId],
                 [
                     'org_id' => $orgId,
                     'company_id' => $companyId,
-                    'requisition_number' => $mrData['ref'],
+                    'requisition_code' => $mrData['ref'],
                     'status' => $mrData['status'],
-                    'purpose' => $mrData['purpose'],
-                    'requested_date' => now()->subDays(rand(1, 15)),
-                    'required_date' => now()->addDays(rand(3, 10)),
+                    'priority' => $mrData['priority'],
+                    'notes' => $mrData['notes'],
+                    'rejection_reason' => $mrData['rejection_reason'] ?? null,
+                    'requisition_date' => now()->subDays(rand(1, 15)),
                     'requested_by' => $userId,
                     'approved_by' => in_array($mrData['status'], ['approved', 'issued']) ? $userId : null,
+                    'approved_at' => in_array($mrData['status'], ['approved', 'issued']) ? now()->subDays(rand(1, 5)) : null,
+                    'issued_at' => $mrData['status'] === 'issued' ? now()->subDays(rand(1, 3)) : null,
                 ]
             );
 
             foreach ($mrData['items'] as $item) {
                 $woodType = $createdWoodTypes[$item['wood_type_idx']];
                 TimberMaterialRequisitionItem::firstOrCreate(
-                    ['material_requisition_id' => $mr->id, 'wood_type_id' => $woodType->id],
+                    ['requisition_id' => $mr->id, 'wood_type_id' => $woodType->id],
                     [
-                        'org_id' => $orgId,
-                        'company_id' => $companyId,
-                        'material_requisition_id' => $mr->id,
+                        'requisition_id' => $mr->id,
                         'wood_type_id' => $woodType->id,
-                        'quantity' => $item['qty'],
+                        'requested_quantity' => $item['qty'],
+                        'approved_quantity' => in_array($mrData['status'], ['approved', 'issued']) ? $item['qty'] : null,
                         'issued_quantity' => $mrData['status'] === 'issued' ? $item['qty'] : 0,
+                        'unit' => $woodType->unit,
                     ]
                 );
             }
@@ -291,47 +318,69 @@ class TimberDemoSeeder extends Seeder
         // ============================================
         // Stock Alerts (low stock items)
         // ============================================
-        $alerts = [
-            ['wood_type_idx' => 6, 'warehouse_idx' => 2, 'type' => 'low_stock', 'message' => 'Neem wood stock below minimum threshold (25 CFT < 50 CFT)'],
-            ['wood_type_idx' => 7, 'warehouse_idx' => 2, 'type' => 'low_stock', 'message' => 'Rubber Wood approaching minimum threshold'],
-        ];
+        $alertLedgerNeem = $createdLedgers['6-2'] ?? null;
+        $alertLedgerRubber = $createdLedgers['7-2'] ?? null;
 
-        foreach ($alerts as $alertData) {
-            $woodType = $createdWoodTypes[$alertData['wood_type_idx']];
-            $warehouse = $createdWarehouses[$alertData['warehouse_idx']];
-
+        if ($alertLedgerNeem) {
             TimberStockAlert::firstOrCreate(
-                ['wood_type_id' => $woodType->id, 'warehouse_id' => $warehouse->id, 'company_id' => $companyId, 'is_resolved' => false],
+                ['wood_type_id' => $createdWoodTypes[6]->id, 'warehouse_id' => $createdWarehouses[2]->id, 'company_id' => $companyId, 'is_resolved' => false],
                 [
                     'org_id' => $orgId,
                     'company_id' => $companyId,
-                    'wood_type_id' => $woodType->id,
-                    'warehouse_id' => $warehouse->id,
-                    'alert_type' => $alertData['type'],
-                    'message' => $alertData['message'],
+                    'wood_type_id' => $createdWoodTypes[6]->id,
+                    'warehouse_id' => $createdWarehouses[2]->id,
+                    'stock_ledger_id' => $alertLedgerNeem->id,
+                    'current_quantity' => 25.00,
+                    'threshold' => 50.00,
+                    'alert_type' => 'low_stock',
                     'is_resolved' => false,
                 ]
             );
         }
 
-        // Additional stock movements (OUT type for issued requisitions)
-        TimberStockMovement::firstOrCreate(
-            ['reference_number' => 'MR-2026-005-OUT', 'company_id' => $companyId],
-            [
-                'org_id' => $orgId,
-                'company_id' => $companyId,
-                'wood_type_id' => $createdWoodTypes[5]->id,
-                'warehouse_id' => $createdWarehouses[0]->id,
-                'movement_type' => 'OUT',
-                'quantity' => 30,
-                'rate' => 1200.00,
-                'total_amount' => 36000.00,
-                'reference_type' => 'REQUISITION',
-                'reference_number' => 'MR-2026-005-OUT',
-                'notes' => 'Issued for Material Requisition MR-2026-005',
-                'created_by' => $userId,
-            ]
-        );
+        if ($alertLedgerRubber) {
+            TimberStockAlert::firstOrCreate(
+                ['wood_type_id' => $createdWoodTypes[7]->id, 'warehouse_id' => $createdWarehouses[2]->id, 'company_id' => $companyId, 'is_resolved' => false],
+                [
+                    'org_id' => $orgId,
+                    'company_id' => $companyId,
+                    'wood_type_id' => $createdWoodTypes[7]->id,
+                    'warehouse_id' => $createdWarehouses[2]->id,
+                    'stock_ledger_id' => $alertLedgerRubber->id,
+                    'current_quantity' => 60.00,
+                    'threshold' => 30.00,
+                    'alert_type' => 'low_stock',
+                    'is_resolved' => false,
+                ]
+            );
+        }
+
+        // Additional stock movement (OUT type for issued requisition MR-2026-005)
+        $ledgerMango = $createdLedgers['5-0'] ?? null;
+        if ($ledgerMango) {
+            TimberStockMovement::firstOrCreate(
+                ['stock_ledger_id' => $ledgerMango->id, 'reference_type' => 'material_requisition', 'notes' => 'Issued for MR-2026-005'],
+                [
+                    'org_id' => $orgId,
+                    'company_id' => $companyId,
+                    'stock_ledger_id' => $ledgerMango->id,
+                    'wood_type_id' => $createdWoodTypes[5]->id,
+                    'warehouse_id' => $createdWarehouses[0]->id,
+                    'movement_type' => 'out',
+                    'quantity' => 30,
+                    'unit' => 'CFT',
+                    'reference_type' => 'material_requisition',
+                    'reference_id' => null,
+                    'unit_cost' => 1200.00,
+                    'total_cost' => 36000.00,
+                    'before_quantity' => 120.00,
+                    'after_quantity' => 90.00,
+                    'notes' => 'Issued for MR-2026-005',
+                    'movement_date' => now()->subDays(2),
+                    'created_by' => $userId,
+                ]
+            );
+        }
 
         $this->command->info('Timber demo data seeded successfully!');
         $this->command->info('  - ' . count($createdWoodTypes) . ' wood types');
@@ -340,6 +389,6 @@ class TimberDemoSeeder extends Seeder
         $this->command->info('  - ' . count($stockData) . ' stock ledger entries');
         $this->command->info('  - ' . count($purchaseOrders) . ' purchase orders');
         $this->command->info('  - ' . count($requisitions) . ' material requisitions');
-        $this->command->info('  - ' . count($alerts) . ' stock alerts');
+        $this->command->info('  - 2 stock alerts');
     }
 }
