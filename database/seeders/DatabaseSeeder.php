@@ -13,15 +13,11 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Seed roles and permissions first
-        // $this->call(AccessSeeder::class);
+        // Seed roles, permissions, and CRM master data
         $this->call([
             AccessSeeder::class,
             SourceSeeder::class,
             CampaignSeeder::class,
-        ]);
-
-        $this->call([
             StatusSeeder::class,
             RequestTypeSeeder::class,
             IndustryTypeSeeder::class,
@@ -36,7 +32,7 @@ class DatabaseSeeder extends Seeder
 
         // Create Super Admin user
         $admin = User::firstOrCreate(
-            ['email' => 'admin@hrms.local'],
+            ['email' => 'admin@crm.local'],
             [
                 'name' => 'Super Admin',
                 'password' => Hash::make('password'),
@@ -45,48 +41,29 @@ class DatabaseSeeder extends Seeder
         );
         $admin->assignRole('admin');
 
-        // Create HR Manager user
-        $hrManager = User::firstOrCreate(
-            ['email' => 'hr@hrms.local'],
+        // Create Sales Manager user
+        $salesManager = User::firstOrCreate(
+            ['email' => 'sales@crm.local'],
             [
                 'name' => 'Sarah Johnson',
                 'password' => Hash::make('password'),
                 'is_active' => true,
             ]
         );
-        $hrManager->assignRole('hr');
+        $salesManager->assignRole('company');
 
-        // Create Department Head / Manager user
-        $manager = User::firstOrCreate(
-            ['email' => 'manager@hrms.local'],
-            [
-                'name' => 'Michael Chen',
-                'password' => Hash::make('password'),
-                'is_active' => true,
-            ]
-        );
-        $manager->assignRole('company');
-
-        // Create Accountant user
-        $accountant = User::firstOrCreate(
-            ['email' => 'accountant@hrms.local'],
-            [
-                'name' => 'Emily Davis',
-                'password' => Hash::make('password'),
-                'is_active' => true,
-            ]
-        );
-        $accountant->assignRole('user');
-
-        // Create Employee user
-        $employee = User::firstOrCreate(
-            ['email' => 'employee@hrms.local'],
+        // Create Sales Rep user
+        $salesRep = User::firstOrCreate(
+            ['email' => 'rep@crm.local'],
             [
                 'name' => 'John Smith',
                 'password' => Hash::make('password'),
                 'is_active' => true,
             ]
         );
-        $employee->assignRole('user');
+        $salesRep->assignRole('user');
+
+        // Seed Timber demo data
+        $this->call(TimberDemoSeeder::class);
     }
 }
