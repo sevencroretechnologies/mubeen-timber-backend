@@ -810,4 +810,46 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/users-by-org', [UsersController::class , 'getUsersByOrgId'])->middleware('permission:view_roles');
         // Users by Company
         Route::get('/users-by-company', [UsersController::class , 'getUsersByCompanyId'])->middleware('permission:view_roles');
+
+        // ============================================
+        // TIMBER INVENTORY & STOCK MANAGEMENT
+        // ============================================
+        Route::prefix('timber')->group(function () {
+
+            // Suppliers
+            Route::apiResource('suppliers', \App\Http\Controllers\Api\Timber\TimberSupplierController::class);
+
+            // Warehouses
+            Route::get('warehouses', [\App\Http\Controllers\Api\Timber\TimberWarehouseController::class, 'index']);
+            Route::post('warehouses', [\App\Http\Controllers\Api\Timber\TimberWarehouseController::class, 'store']);
+            Route::put('warehouses/{id}', [\App\Http\Controllers\Api\Timber\TimberWarehouseController::class, 'update']);
+            Route::delete('warehouses/{id}', [\App\Http\Controllers\Api\Timber\TimberWarehouseController::class, 'destroy']);
+
+            // Stock
+            Route::get('stock', [\App\Http\Controllers\Api\Timber\TimberStockController::class, 'index']);
+            Route::get('stock/movements', [\App\Http\Controllers\Api\Timber\TimberStockController::class, 'movements']);
+            Route::get('stock/low-alerts', [\App\Http\Controllers\Api\Timber\TimberStockController::class, 'lowAlerts']);
+            Route::get('stock/valuation', [\App\Http\Controllers\Api\Timber\TimberStockController::class, 'valuation']);
+            Route::get('stock/check-availability', [\App\Http\Controllers\Api\Timber\TimberStockController::class, 'checkAvailability']);
+            Route::post('stock/adjust', [\App\Http\Controllers\Api\Timber\TimberStockController::class, 'adjust']);
+            Route::put('stock/threshold/{woodTypeId}', [\App\Http\Controllers\Api\Timber\TimberStockController::class, 'setThreshold']);
+            Route::get('stock/{woodTypeId}', [\App\Http\Controllers\Api\Timber\TimberStockController::class, 'show']);
+
+            // Purchase Orders
+            Route::apiResource('purchase-orders', \App\Http\Controllers\Api\Timber\TimberPurchaseOrderController::class);
+            Route::post('purchase-orders/{id}/send', [\App\Http\Controllers\Api\Timber\TimberPurchaseOrderController::class, 'send']);
+            Route::post('purchase-orders/{id}/receive', [\App\Http\Controllers\Api\Timber\TimberPurchaseOrderController::class, 'receive']);
+
+            // Material Requisitions
+            Route::get('material-requisitions', [\App\Http\Controllers\Api\Timber\TimberMaterialRequisitionController::class, 'index']);
+            Route::post('material-requisitions', [\App\Http\Controllers\Api\Timber\TimberMaterialRequisitionController::class, 'store']);
+            Route::get('material-requisitions/{id}', [\App\Http\Controllers\Api\Timber\TimberMaterialRequisitionController::class, 'show']);
+            Route::post('material-requisitions/{id}/approve', [\App\Http\Controllers\Api\Timber\TimberMaterialRequisitionController::class, 'approve']);
+            Route::post('material-requisitions/{id}/reject', [\App\Http\Controllers\Api\Timber\TimberMaterialRequisitionController::class, 'reject']);
+            Route::post('material-requisitions/{id}/return', [\App\Http\Controllers\Api\Timber\TimberMaterialRequisitionController::class, 'returnMaterials']);
+
+            // Stock Alerts
+            Route::get('stock-alerts', [\App\Http\Controllers\Api\Timber\TimberStockAlertController::class, 'index']);
+            Route::post('stock-alerts/{id}/resolve', [\App\Http\Controllers\Api\Timber\TimberStockAlertController::class, 'resolve']);
+        });
 });

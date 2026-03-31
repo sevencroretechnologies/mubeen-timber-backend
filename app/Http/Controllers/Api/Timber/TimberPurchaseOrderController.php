@@ -1,0 +1,178 @@
+<?php
+
+namespace App\Http\Controllers\Api\Timber;
+
+use App\Http\Controllers\Controller;
+use App\Models\Timber\TimberPurchaseOrder;
+use App\Services\Timber\PurchaseOrderService;
+use App\Traits\ApiResponse;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+
+class TimberPurchaseOrderController extends Controller
+{
+    use ApiResponse;
+
+    protected PurchaseOrderService $purchaseOrderService;
+
+    public function __construct(PurchaseOrderService $purchaseOrderService)
+    {
+        $this->purchaseOrderService = $purchaseOrderService;
+    }
+
+    public function index(Request $request): JsonResponse
+    {
+        try {
+            $query = TimberPurchaseOrder::with(['supplier:id,name,supplier_code', 'warehouse:id,name'])
+                ->forCurrentCompany();
+
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
+            if ($request->filled('supplier_id')) {
+                $query->where('supplier_id', $request->supplier_id);
+            }
+
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('po_code', 'like', "%{$search}%")
+                        ->orWhereHas('supplier', function ($sq) use ($search) {
+                            $sq->where('name', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            $perPage = $request->query('per_page', 15);
+            $orders = $query->latest()->paginate($perPage);
+
+            return $this->paginated($orders, 'Purchase orders retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->serverError('Failed to retrieve purchase orders: ' . $e->getMessage());
+        }
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'supplier_id' => 'required|integer|exists:timber_suppliers,id',
+            'warehouse_id' => 'required|integer|exists:timber_warehouses,id',
+            'order_date' => 'required|date',
+            'expected_delivery_date' => 'nullable|date|after_or_equal:order_date',
+            'tax_percentage' => 'nullable|numeric|min:0|max:100',
+            'discount_amount' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string',
+            'terms' => 'nullable|string',
+            'items' => 'required|array|min:1',
+            'items.*.wood_type_id' => 'required|integer',
+            'items.*.quantity' => 'required|numeric|min:0.001',
+            'items.*.unit' => 'required|string|max:20',
+            'items.*.unit_price' => 'required|numeric|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->validationError($validator->errors());
+        }
+
+        try {
+            $po = $this->purchaseOrderService->create($request->all());
+
+            return $this->created($po, 'Purchase order created successfully');
+        } catch (\Exception $e) {
+            return $this->serverError('Failed to create purchase order: ' . $e->getMessage());
+        }
+    }
+
+    public function show(int $id): JsonResponse
+    {
+        try {
+            $po = TimberPurchaseOrder::with(['supplier', 'warehouse', 'items.woodType', 'createdBy:id,name'])
+                ->forCurrentCompany()
+                ->findOrFail($id);
+
+            return $this->success($po, 'Purchase order retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->notFound('Purchase order not found');
+        }
+    }
+
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'supplier_id' => 'sometimes|required|integer|exists:timber_suppliers,id',
+            'warehouse_id' => 'sometimes|required|integer|exists:timber_warehouses,id',
+            'order_date' => 'sometimes|required|date',
+            'expected_delivery_date' => 'nullable|date',
+            'tax_percentage' => 'nullable|numeric|min:0|max:100',
+            'discount_amount' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string',
+            'terms' => 'nullable|string',
+            'items' => 'nullable|array|min:1',
+            'items.*.wood_type_id' => 'required_with:items|integer',
+            'items.*.quantity' => 'required_with:items|numeric|min:0.001',
+            'items.*.unit' => 'required_with:items|string|max:20',
+            'items.*.unit_price' => 'required_with:items|numeric|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->validationError($validator->errors());
+        }
+
+        try {
+            $po = TimberPurchaseOrder::forCurrentCompany()->findOrFail($id);
+            $po = $this->purchaseOrderService->update($po, $request->all());
+
+            return $this->success($po, 'Purchase order updated successfully');
+        } catch (\Exception $e) {
+            return $this->error($e->getMessage(), 400);
+        }
+    }
+
+    public function destroy(int $id): JsonResponse
+    {
+        try {
+            $po = TimberPurchaseOrder::forCurrentCompany()->findOrFail($id);
+            $this->purchaseOrderService->delete($po);
+
+            return $this->noContent('Purchase order deleted successfully');
+        } catch (\Exception $e) {
+            return $this->error($e->getMessage(), 400);
+        }
+    }
+
+    public function send(int $id): JsonResponse
+    {
+        try {
+            $po = TimberPurchaseOrder::forCurrentCompany()->findOrFail($id);
+            $po = $this->purchaseOrderService->markAsOrdered($po);
+
+            return $this->success($po, 'Purchase order marked as ordered');
+        } catch (\Exception $e) {
+            return $this->error($e->getMessage(), 400);
+        }
+    }
+
+    public function receive(Request $request, int $id): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'items' => 'required|array|min:1',
+            'items.*.item_id' => 'required|integer|exists:timber_purchase_order_items,id',
+            'items.*.quantity' => 'required|numeric|min:0.001',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->validationError($validator->errors());
+        }
+
+        try {
+            $po = TimberPurchaseOrder::forCurrentCompany()->findOrFail($id);
+            $po = $this->purchaseOrderService->receiveGoods($po, $request->items);
+
+            return $this->success($po, 'Goods received successfully');
+        } catch (\Exception $e) {
+            return $this->error($e->getMessage(), 400);
+        }
+    }
+}
