@@ -307,7 +307,7 @@ class OpportunityController extends Controller
                 'opportunity_products.product_id',
                 'products.code as item_code',
                 'products.name as item_name',
-                'products.category_id',
+                'products.project_id',
                 'opportunity_products.quantity as qty',
                 'opportunity_products.rate',
                 'opportunity_products.amount',
