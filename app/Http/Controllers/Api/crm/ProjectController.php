@@ -3,18 +3,18 @@
 namespace App\Http\Controllers\Api\crm;
 
 use App\Http\Controllers\Controller;
-use App\Models\ProductCategory;
+use App\Models\Project;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Exception;
 
-class ProductCategoryController extends Controller
+class ProjectController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
         try {
-            $query = ProductCategory::query();
+            $query = Project::query();
 
             if ($request->filled('search')) {
                 $search = $request->search;
@@ -22,6 +22,10 @@ class ProductCategoryController extends Controller
                     $q->where('name', 'like', "%{$search}%")
                         ->orWhere('description', 'like', "%{$search}%");
                 });
+            }
+
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
             }
 
             $perPage = $request->query('per_page', 15);
@@ -32,7 +36,7 @@ class ProductCategoryController extends Controller
                 ->appends($queryParameters);
 
             return response()->json([
-                'message' => 'All product categories retrieved successfully.',
+                'message' => 'All projects retrieved successfully.',
                 'data' => $data,
                 'pagination' => [
                     'current_page' => $data->currentPage(),
@@ -45,7 +49,7 @@ class ProductCategoryController extends Controller
             ], 200);
         } catch (Exception $e) {
             return response()->json([
-                'error' => 'Failed to retrieve product categories',
+                'error' => 'Failed to retrieve projects',
                 'message' => $e->getMessage()
             ], 500);
         }
@@ -54,33 +58,40 @@ class ProductCategoryController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:product_categories',
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'status' => 'nullable|string|in:active,completed,on_hold,cancelled',
         ]);
 
-        $productCategory = ProductCategory::create($validated);
-        return response()->json($productCategory, 201);
+        $project = Project::create($validated);
+        return response()->json($project, 201);
     }
 
     public function show(int $id): JsonResponse
     {
-        return response()->json(ProductCategory::findOrFail($id));
+        $project = Project::with('products')->findOrFail($id);
+        return response()->json($project);
     }
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $productCategory = ProductCategory::findOrFail($id);
+        $project = Project::findOrFail($id);
         $validated = $request->validate([
-            'name' => 'nullable|string|max:255|unique:product_categories,name,' . $id,
+            'name' => 'nullable|string|max:255',
             'description' => 'nullable|string',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'status' => 'nullable|string|in:active,completed,on_hold,cancelled',
         ]);
-        $productCategory->update($validated);
-        return response()->json($productCategory);
+        $project->update($validated);
+        return response()->json($project);
     }
 
     public function destroy(int $id): JsonResponse
     {
-        ProductCategory::findOrFail($id)->delete();
+        Project::findOrFail($id)->delete();
         return response()->json(null, 204);
     }
 }

@@ -24,8 +24,8 @@ use App\Http\Controllers\Api\crm\SalesTaskController;
 use App\Http\Controllers\Api\crm\SalesTaskDetailController;
 use App\Http\Controllers\Api\crm\TaskSourceController;
 use App\Http\Controllers\Api\crm\TaskTypeController;
-use App\Http\Controllers\Api\crm\ProductCategoryController;
 use App\Http\Controllers\Api\crm\ProductController;
+use App\Http\Controllers\Api\crm\ProjectController;
 use App\Http\Controllers\Api\crm\OpportunityProductController;
 use Illuminate\Support\Facades\Route;
 
@@ -114,7 +114,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('customer-groups', CustomerGroupController::class);
     Route::apiResource('payment-terms', PaymentTermController::class);
     Route::apiResource('price-lists', PriceListController::class);
-    Route::apiResource('product-categories', ProductCategoryController::class);
+    Route::apiResource('projects', ProjectController::class);
     Route::apiResource('products', ProductController::class);
     Route::apiResource('opportunity-products', OpportunityProductController::class);
     Route::apiResource('estimations', \App\Http\Controllers\EstimationController::class);
