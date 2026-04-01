@@ -144,8 +144,6 @@ class CrmDemoSeeder extends Seeder
                     'project_id' => $project->id,
                     'name' => $p['name'],
                     'description' => $p['description'],
-                    'rate' => $p['rate'],
-                    'amount' => $p['amount'],
                 ]
             );
         }
