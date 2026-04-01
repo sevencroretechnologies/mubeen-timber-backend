@@ -20,17 +20,8 @@ class Customer extends Model
         'lead_id',
         'opportunity_id',
         'industry_id',
-        'default_price_list_id',
-        'payment_term_id',
-        'customer_contact_id',
         'email',
         'phone',
-        'website',
-        'tax_id',
-        'billing_currency',
-        'bank_account_details',
-        'print_language',
-        'customer_details',
     ];
 
     protected $casts = [
@@ -62,18 +53,4 @@ class Customer extends Model
         return $this->belongsTo(IndustryType::class, 'industry_id');
     }
 
-    public function priceList(): BelongsTo
-    {
-        return $this->belongsTo(PriceList::class, 'default_price_list_id');
-    }
-
-    public function paymentTerm(): BelongsTo
-    {
-        return $this->belongsTo(PaymentTerm::class, 'payment_term_id');
-    }
-
-    public function primaryContact(): BelongsTo
-    {
-        return $this->belongsTo(Contact::class, 'customer_contact_id');
-    }
 }
