@@ -11,7 +11,7 @@ class EstimationController extends Controller
      */
     public function index()
     {
-        return response()->json(\App\Models\Estimation::with('product')->get());
+        return response()->json(\App\Models\Estimation::with(['product', 'customer', 'project'])->get());
     }
 
     /**
@@ -20,8 +20,15 @@ class EstimationController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'customer_id' => 'required|exists:customers,id',
+            'project_id' => 'nullable|exists:projects,id',
             'product_id' => 'required|exists:products,id',
             'estimation_type' => 'required|integer',
+            'length' => 'nullable|numeric|min:0',
+            'breadth' => 'nullable|numeric|min:0',
+            'height' => 'nullable|numeric|min:0',
+            'thickness' => 'nullable|numeric|min:0',
+            'quantity' => 'nullable|integer|min:0',
             'cft' => 'nullable|numeric|min:0',
             'cost_per_cft' => 'nullable|numeric|min:0',
             'labor_charges' => 'nullable|numeric|min:0',
@@ -50,8 +57,15 @@ class EstimationController extends Controller
         $estimation = \App\Models\Estimation::findOrFail($id);
 
         $validated = $request->validate([
+            'customer_id' => 'sometimes|exists:customers,id',
+            'project_id' => 'nullable|exists:projects,id',
             'product_id' => 'sometimes|exists:products,id',
             'estimation_type' => 'sometimes|integer',
+            'length' => 'nullable|numeric|min:0',
+            'breadth' => 'nullable|numeric|min:0',
+            'height' => 'nullable|numeric|min:0',
+            'thickness' => 'nullable|numeric|min:0',
+            'quantity' => 'nullable|integer|min:0',
             'cft' => 'nullable|numeric|min:0',
             'cost_per_cft' => 'nullable|numeric|min:0',
             'labor_charges' => 'nullable|numeric|min:0',

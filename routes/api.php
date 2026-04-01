@@ -117,6 +117,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('product-categories', ProductCategoryController::class);
     Route::apiResource('products', ProductController::class);
     Route::apiResource('opportunity-products', OpportunityProductController::class);
+    Route::apiResource('estimations', \App\Http\Controllers\EstimationController::class);
+    Route::apiResource('projects', \App\Http\Controllers\ProjectController::class);
 
     // ============================================
     // CRM - Sales Tasks
