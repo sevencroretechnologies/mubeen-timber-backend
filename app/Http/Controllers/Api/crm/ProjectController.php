@@ -24,6 +24,10 @@ class ProjectController extends Controller
                 });
             }
 
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
             $perPage = $request->query('per_page', 15);
             $queryParameters = Arr::except($request->query(), ['user_id']);
 
@@ -54,8 +58,11 @@ class ProjectController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:projects',
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'status' => 'nullable|string|in:active,completed,on_hold,cancelled',
         ]);
 
         $project = Project::create($validated);
@@ -64,15 +71,19 @@ class ProjectController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        return response()->json(Project::findOrFail($id));
+        $project = Project::with('products')->findOrFail($id);
+        return response()->json($project);
     }
 
     public function update(Request $request, int $id): JsonResponse
     {
         $project = Project::findOrFail($id);
         $validated = $request->validate([
-            'name' => 'nullable|string|max:255|unique:projects,name,' . $id,
+            'name' => 'nullable|string|max:255',
             'description' => 'nullable|string',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'status' => 'nullable|string|in:active,completed,on_hold,cancelled',
         ]);
         $project->update($validated);
         return response()->json($project);

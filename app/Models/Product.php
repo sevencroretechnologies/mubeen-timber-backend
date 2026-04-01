@@ -12,31 +12,19 @@ class Product extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'customer_id',
         'project_id',
         'name',
-        'code',
         'description',
-        'long_description',
-        'slug',
-        'stock',
-        'rate',
-        'amount',
     ];
 
-    /**
-     * Auto-generate a unique product code after creating.
-     */
-    protected static function booted(): void
+    public function customer(): BelongsTo
     {
-        static::created(function (Product $product) {
-            // Format: PRD-00001 (zero-padded to 5 digits)
-            $product->code = 'PRD-' . str_pad($product->id, 5, '0', STR_PAD_LEFT);
-            $product->saveQuietly();
-        });
+        return $this->belongsTo(Customer::class);
     }
 
     public function project(): BelongsTo
     {
-        return $this->belongsTo(Project::class, 'project_id');
+        return $this->belongsTo(Project::class);
     }
 }

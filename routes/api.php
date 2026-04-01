@@ -24,8 +24,8 @@ use App\Http\Controllers\Api\crm\SalesTaskController;
 use App\Http\Controllers\Api\crm\SalesTaskDetailController;
 use App\Http\Controllers\Api\crm\TaskSourceController;
 use App\Http\Controllers\Api\crm\TaskTypeController;
-use App\Http\Controllers\Api\crm\ProjectController;
 use App\Http\Controllers\Api\crm\ProductController;
+use App\Http\Controllers\Api\crm\ProjectController;
 use App\Http\Controllers\Api\crm\OpportunityProductController;
 use Illuminate\Support\Facades\Route;
 

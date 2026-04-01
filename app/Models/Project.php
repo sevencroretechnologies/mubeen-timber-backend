@@ -11,12 +11,21 @@ class Project extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'projects';
+    protected $fillable = [
+        'name',
+        'description',
+        'start_date',
+        'end_date',
+        'status',
+    ];
 
-    protected $fillable = ['name', 'description'];
+    protected $casts = [
+        'start_date' => 'date',
+        'end_date' => 'date',
+    ];
 
     public function products(): HasMany
     {
-        return $this->hasMany(Product::class, 'project_id');
+        return $this->hasMany(Product::class);
     }
 }
