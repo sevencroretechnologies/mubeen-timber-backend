@@ -23,7 +23,7 @@ return new class extends Migration
             $table->foreignId('payment_term_id')->nullable()->constrained('payment_terms')->nullOnDelete();
 
             // Assuming customer_contacts is the table for contacts
-            $table->foreignId('customer_contact_id')->nullable()->constrained('customer_contacts')->nullOnDelete();
+           
 
             // Other Fields
             $table->string('email')->nullable();

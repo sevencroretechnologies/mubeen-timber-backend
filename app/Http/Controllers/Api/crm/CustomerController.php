@@ -93,7 +93,6 @@ class CustomerController extends Controller
             'industry_id' => 'nullable|exists:industry_types,id',
             'default_price_list_id' => 'nullable|exists:price_lists,id',
             'payment_term_id' => 'nullable|exists:payment_terms,id',
-            'customer_contact_id' => 'nullable|exists:customer_contacts,id',
             'email' => 'nullable|email',
             'phone' => 'nullable|string',
             'website' => 'nullable|url',
@@ -148,7 +147,7 @@ class CustomerController extends Controller
             'industry_id' => 'nullable|exists:industry_types,id',
             'default_price_list_id' => 'nullable|exists:price_lists,id',
             'payment_term_id' => 'nullable|exists:payment_terms,id',
-            'customer_contact_id' => 'nullable|exists:customer_contacts,id',
+            
             'email' => 'nullable|email',
             'phone' => 'nullable|string',
             'website' => 'nullable|url',

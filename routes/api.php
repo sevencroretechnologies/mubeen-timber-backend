@@ -15,7 +15,7 @@ use App\Http\Controllers\Api\crm\IndustryTypeController;
 use App\Http\Controllers\Api\crm\OpportunityStageController;
 use App\Http\Controllers\Api\crm\OpportunityTypeController;
 use App\Http\Controllers\Api\crm\TerritoryController;
-use App\Http\Controllers\Api\crm\ContactController;
+
 use App\Http\Controllers\Api\crm\CustomerGroupController;
 use App\Http\Controllers\Api\crm\PaymentTermController;
 use App\Http\Controllers\Api\crm\PriceListController;
@@ -105,7 +105,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('opportunity-types', OpportunityTypeController::class);
     Route::apiResource('lost-reasons', OpportunityLostReasonController::class);
     Route::apiResource('territories', TerritoryController::class);
-    Route::apiResource('contacts', ContactController::class);
+    
 
     // ============================================
     // CRM - Customers & Products
