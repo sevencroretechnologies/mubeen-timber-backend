@@ -37,7 +37,7 @@ use App\Http\Controllers\Api\Admin\UsersController;
 use App\Http\Controllers\Api\Auth\AccessController;
 use App\Http\Controllers\CompanyController as CompanyMgmtController;
 use App\Http\Controllers\OrganizationController;
-
+use App\Http\Controllers\EstimationController;
 // ============================================
 // Public Auth Routes
 // ============================================
@@ -117,6 +117,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('projects', ProjectController::class);
     Route::apiResource('products', ProductController::class);
     Route::apiResource('opportunity-products', OpportunityProductController::class);
+    Route::apiResource('estimations', EstimationController::class);
+   
 
     // ============================================
     // CRM - Sales Tasks
