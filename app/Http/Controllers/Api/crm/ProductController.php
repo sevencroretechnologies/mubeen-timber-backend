@@ -14,7 +14,7 @@ class ProductController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $query = Product::with('category');
+            $query = Product::with('project');
 
             if ($request->filled('search')) {
                 $search = $request->search;
@@ -24,8 +24,8 @@ class ProductController extends Controller
                 });
             }
 
-            if ($request->filled('category_id')) {
-                $query->where('category_id', $request->category_id);
+            if ($request->filled('project_id')) {
+                $query->where('project_id', $request->project_id);
             }
 
             $perPage = $request->query('per_page', 15);
@@ -58,7 +58,7 @@ class ProductController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'category_id' => 'nullable|integer|exists:product_categories,id',
+            'project_id' => 'nullable|integer|exists:projects,id',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'long_description' => 'nullable|string',
@@ -69,13 +69,13 @@ class ProductController extends Controller
         ]);
 
         $product = Product::create($validated);
-        $product->load('category');
+        $product->load('project');
         return response()->json($product, 201);
     }
 
     public function show(int $id): JsonResponse
     {
-        $product = Product::with('category')->findOrFail($id);
+        $product = Product::with('project')->findOrFail($id);
         return response()->json($product);
     }
 
@@ -83,7 +83,7 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($id);
         $validated = $request->validate([
-            'category_id' => 'nullable|integer|exists:product_categories,id',
+            'project_id' => 'nullable|integer|exists:projects,id',
             'name' => 'nullable|string|max:255',
             'code' => 'nullable|string|max:255|unique:products,code,' . $id,
             'description' => 'nullable|string',
@@ -94,7 +94,7 @@ class ProductController extends Controller
             'amount' => 'nullable|numeric|min:0',
         ]);
         $product->update($validated);
-        $product->load('category');
+        $product->load('project');
         return response()->json($product);
     }
 
