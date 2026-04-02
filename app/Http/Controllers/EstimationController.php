@@ -35,6 +35,10 @@ class EstimationController extends Controller
             'total_amount' => 'nullable|numeric|min:0',
         ]);
 
+        $calculations = $this->calculateCftAndTotal($validated);
+        $validated['cft'] = $calculations['cft'];
+        $validated['total_amount'] = $calculations['total_amount'];
+
         $estimation = \App\Models\Estimation::create($validated);
 
         return response()->json($estimation, 201);
@@ -72,6 +76,12 @@ class EstimationController extends Controller
             'total_amount' => 'nullable|numeric|min:0',
         ]);
 
+        $fullData = array_merge($estimation->toArray(), $validated);
+        $calculations = $this->calculateCftAndTotal($fullData);
+        
+        $validated['cft'] = $calculations['cft'];
+        $validated['total_amount'] = $calculations['total_amount'];
+
         $estimation->update($validated);
 
         return response()->json($estimation);
@@ -86,5 +96,50 @@ class EstimationController extends Controller
         $estimation->delete();
 
         return response()->json(null, 204);
+    }
+
+    /**
+     * Helper to perform consistent calculation for CFT and Totals.
+     */
+    private function calculateCftAndTotal(array $data)
+    {
+        $l = !empty($data['length']) ? floatval($data['length']) : 1;
+        $b = !empty($data['breadth']) ? floatval($data['breadth']) : 1;
+        $h = !empty($data['height']) ? floatval($data['height']) : 1;
+        $t = !empty($data['thickness']) ? floatval($data['thickness']) : 1;
+        $q = !empty($data['quantity']) ? floatval($data['quantity']) : 1;
+        
+        $type = !empty($data['estimation_type']) ? intval($data['estimation_type']) : 1;
+        $cftPerUnit = 0;
+
+        if ($type === 1) {
+            $cftPerUnit = ($l * $b * $h) / 144;
+        } elseif ($type === 2) {
+            $cftPerUnit = $l * $b * $h;
+        } elseif ($type === 3) {
+            $cftPerUnit = ($l * $b * $t) / 12;
+        } elseif ($type === 4) {
+            $cftPerUnit = $l * $b * $t;
+        } else {
+            $cftPerUnit = ($l * $b * $h) / 144;
+        }
+
+        $calcCft = $cftPerUnit * $q;
+
+        if (!empty($data['length']) || !empty($data['breadth']) || !empty($data['height']) || !empty($data['thickness']) || !empty($data['quantity'])) {
+            $finalCft = $calcCft;
+        } else {
+            $finalCft = !empty($data['cft']) ? floatval($data['cft']) : 0;
+        }
+
+        $cost = !empty($data['cost_per_cft']) ? floatval($data['cost_per_cft']) : 0;
+        $labor = !empty($data['labor_charges']) ? floatval($data['labor_charges']) : 0;
+        
+        $total = ($finalCft * $cost) + $labor;
+
+        return [
+            'cft' => round($finalCft, 2),
+            'total_amount' => round($total, 2)
+        ];
     }
 }
