@@ -15,7 +15,7 @@ use App\Models\Opportunity;
 use App\Models\OpportunityStage;
 use App\Models\OpportunityType;
 use App\Models\Organization;
-use App\Models\PaymentTerm;
+// use App\Models\PaymentTerm;
 use App\Models\PriceList;
 use App\Models\Product;
 use App\Models\Project;
@@ -79,18 +79,18 @@ class CrmDemoSeeder extends Seeder
         // ============================================
         // Payment Terms
         // ============================================
-        $paymentTerms = [
-            ['name' => 'Net 15', 'days' => 15],
-            ['name' => 'Net 30', 'days' => 30],
-            ['name' => 'Net 45', 'days' => 45],
-            ['name' => 'Advance', 'days' => 0],
-            ['name' => '50% Advance', 'days' => 15],
-        ];
+        // $paymentTerms = [
+        //     ['name' => 'Net 15', 'days' => 15],
+        //     ['name' => 'Net 30', 'days' => 30],
+        //     ['name' => 'Net 45', 'days' => 45],
+        //     ['name' => 'Advance', 'days' => 0],
+        //     ['name' => '50% Advance', 'days' => 15],
+        // ];
 
-        $createdPaymentTerms = [];
-        foreach ($paymentTerms as $pt) {
-            $createdPaymentTerms[] = PaymentTerm::firstOrCreate(['name' => $pt['name']], $pt);
-        }
+        // $createdPaymentTerms = [];
+        // foreach ($paymentTerms as $pt) {
+        //     $createdPaymentTerms[] = PaymentTerm::firstOrCreate(['name' => $pt['name']], $pt);
+        // }
 
         // ============================================
         // Price Lists
@@ -166,22 +166,22 @@ class CrmDemoSeeder extends Seeder
             $email = $c['email'];
             unset($c['phone'], $c['email']);
 
-            $contact = Contact::firstOrCreate(
-                ['first_name' => $c['first_name'], 'last_name' => $c['last_name']],
-                array_merge($c, ['status' => 'active'])
-            );
+            // $contact = Contact::firstOrCreate(
+            //     ['first_name' => $c['first_name'], 'last_name' => $c['last_name']],
+            //     array_merge($c, ['status' => 'active'])
+            // );
 
-            CustomerContactPhone::firstOrCreate(
-                ['contact_id' => $contact->id, 'phone_no' => $phone],
-                ['contact_id' => $contact->id, 'phone_no' => $phone, 'is_primary' => true]
-            );
+            // CustomerContactPhone::firstOrCreate(
+            //     ['contact_id' => $contact->id, 'phone_no' => $phone],
+            //     ['contact_id' => $contact->id, 'phone_no' => $phone, 'is_primary' => true]
+            // );
 
-            CustomerContactEmail::firstOrCreate(
-                ['contact_id' => $contact->id, 'email' => $email],
-                ['contact_id' => $contact->id, 'email' => $email, 'is_primary' => true]
-            );
+            // CustomerContactEmail::firstOrCreate(
+            //     ['contact_id' => $contact->id, 'email' => $email],
+            //     ['contact_id' => $contact->id, 'email' => $email, 'is_primary' => true]
+            // );
 
-            $createdContacts[] = $contact;
+            // $createdContacts[] = $contact;
         }
 
         // ============================================
@@ -207,9 +207,7 @@ class CrmDemoSeeder extends Seeder
                     'customer_type' => $c['customer_type'],
                     'customer_group_id' => $createdGroups[$c['group_idx']]->id,
                     'territory_id' => $createdTerritories[$c['territory_idx']]->id,
-                    'customer_contact_id' => $createdContacts[$c['contact_idx']]->id,
                     'industry_id' => $industryIT?->id,
-                    'payment_term_id' => $createdPaymentTerms[array_rand($createdPaymentTerms)]->id,
                     'email' => $c['email'],
                     'phone' => $c['phone'],
                 ]
@@ -324,7 +322,7 @@ class CrmDemoSeeder extends Seeder
         $this->command->info('CRM demo data seeded successfully!');
         $this->command->info('  - ' . count($territories) . ' territories');
         $this->command->info('  - ' . count($groups) . ' customer groups');
-        $this->command->info('  - ' . count($paymentTerms) . ' payment terms');
+        // $this->command->info('  - ' . count($paymentTerms) . ' payment terms');
         $this->command->info('  - ' . count($products) . ' products');
         $this->command->info('  - ' . count($contacts) . ' contacts');
         $this->command->info('  - ' . count($customers) . ' customers');

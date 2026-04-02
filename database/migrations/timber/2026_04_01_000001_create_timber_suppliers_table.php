@@ -24,7 +24,7 @@ return new class extends Migration
             $table->string('bank_name', 100)->nullable();
             $table->string('bank_account', 50)->nullable();
             $table->string('ifsc_code', 20)->nullable();
-            $table->string('payment_terms', 255)->nullable();
+            // $table->string('payment_terms', 255)->nullable();
             $table->boolean('is_active')->default(true);
             $table->unsignedBigInteger('company_id');
             $table->unsignedBigInteger('org_id');

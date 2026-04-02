@@ -16,15 +16,15 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Register any application services.
      */
- public function register(): void
-    {
-        $this->app->singleton(AttendanceService::class, function ($app) {
-            return new AttendanceService(
-                $app->make(ShiftService::class),
-                $app->make(LeaveService::class)
-            );
-        });
-    }
+//  public function register(): void
+//     {
+//         $this->app->singleton(AttendanceService::class, function ($app) {
+//             return new AttendanceService(
+//                 $app->make(ShiftService::class),
+//                 $app->make(LeaveService::class)
+//             );
+//         });
+//     }
 
     /**
      * Bootstrap any application services.

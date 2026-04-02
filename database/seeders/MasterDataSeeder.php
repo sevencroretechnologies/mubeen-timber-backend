@@ -15,11 +15,11 @@ class MasterDataSeeder extends Seeder
             DB::table('customer_groups')->insertOrIgnore(['name' => $group, 'created_at' => now(), 'updated_at' => now()]);
         }
 
-        // Payment Terms
-        $terms = ['Immediate', 'Net 15', 'Net 30', 'Net 45', 'Net 60'];
-        foreach ($terms as $term) {
-            DB::table('payment_terms')->insertOrIgnore(['name' => $term, 'created_at' => now(), 'updated_at' => now()]);
-        }
+        // // Payment Terms
+        // $terms = ['Immediate', 'Net 15', 'Net 30', 'Net 45', 'Net 60'];
+        // foreach ($terms as $term) {
+        //     DB::table('payment_terms')->insertOrIgnore(['name' => $term, 'created_at' => now(), 'updated_at' => now()]);
+        // }
 
         // Price Lists
         $priceLists = [
