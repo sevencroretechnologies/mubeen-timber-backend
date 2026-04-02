@@ -16,9 +16,15 @@ class EstimationController extends Controller
 
     /**
      * Store a newly created resource in storage.
+     * Supports both single and bulk estimation creation with optional customer/project creation.
      */
     public function store(Request $request)
     {
+        // Handle bulk estimations
+        if ($request->has('estimations') && is_array($request->estimations)) {
+            return $this->storeBulk($request);
+        }
+
         $validated = $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'project_id' => 'nullable|exists:projects,id',
@@ -42,6 +48,99 @@ class EstimationController extends Controller
         $estimation = \App\Models\Estimation::create($validated);
 
         return response()->json($estimation, 201);
+    }
+
+    /**
+     * Store bulk estimations with optional customer/project/product creation.
+     */
+    private function storeBulk(Request $request)
+    {
+        $validated = $request->validate([
+            'customer_id' => 'nullable|integer|exists:customers,id',
+            'customer_name' => 'nullable|string|required_if:customer_id,null|max:255',
+            'project_id' => 'nullable|integer|exists:projects,id',
+            'project_name' => 'nullable|string|required_if:project_id,null|max:255',
+            'estimations' => 'required|array|min:1',
+            'estimations.*.product_id' => 'nullable|integer|exists:products,id',
+            'estimations.*.product_name' => 'nullable|string|required_if:estimations.*.product_id,null|max:255',
+            'estimations.*.estimation_type' => 'required|integer',
+            'estimations.*.length' => 'nullable|numeric|min:0',
+            'estimations.*.breadth' => 'nullable|numeric|min:0',
+            'estimations.*.height' => 'nullable|numeric|min:0',
+            'estimations.*.thickness' => 'nullable|numeric|min:0',
+            'estimations.*.quantity' => 'nullable|integer|min:0',
+            'estimations.*.cost_per_cft' => 'nullable|numeric|min:0',
+            'estimations.*.labor_charges' => 'nullable|numeric|min:0',
+        ]);
+
+        // Create or use existing customer
+        $customerId = $validated['customer_id'];
+        if (empty($customerId)) {
+            $customer = \App\Models\Customer::create([
+                'name' => $validated['customer_name'],
+            ]);
+            $customerId = $customer->id;
+        }
+
+        // Create or use existing project
+        $projectId = $validated['project_id'];
+        if (empty($projectId) && !empty($validated['project_name'])) {
+            $project = \App\Models\Project::create([
+                'name' => $validated['project_name'],
+                'description' => null,
+            ]);
+            $projectId = $project->id;
+        }
+
+        // Create products and estimations
+        $createdEstimations = [];
+        $totalAmount = 0;
+
+        foreach ($validated['estimations'] as $estimationData) {
+            // Create or use existing product
+            $productId = $estimationData['product_id'];
+            if (empty($productId)) {
+                $product = \App\Models\Product::create([
+                    'customer_id' => $customerId,
+                    'project_id' => $projectId,
+                    'name' => $estimationData['product_name'],
+                    'description' => null,
+                ]);
+                $productId = $product->id;
+            }
+
+            // Calculate CFT and total
+            $calculations = $this->calculateCftAndTotal($estimationData);
+
+            // Create estimation
+            $estimation = \App\Models\Estimation::create([
+                'customer_id' => $customerId,
+                'project_id' => $projectId,
+                'product_id' => $productId,
+                'estimation_type' => $estimationData['estimation_type'],
+                'length' => $estimationData['length'] ?? null,
+                'breadth' => $estimationData['breadth'] ?? null,
+                'height' => $estimationData['height'] ?? null,
+                'thickness' => $estimationData['thickness'] ?? null,
+                'quantity' => $estimationData['quantity'] ?? null,
+                'cft' => $calculations['cft'],
+                'cost_per_cft' => $estimationData['cost_per_cft'] ?? null,
+                'labor_charges' => $estimationData['labor_charges'] ?? null,
+                'total_amount' => $calculations['total_amount'],
+            ]);
+
+            $estimation->load(['product', 'customer', 'project']);
+            $createdEstimations[] = $estimation;
+            $totalAmount += $calculations['total_amount'];
+        }
+
+        return response()->json([
+            'message' => 'Estimations created successfully',
+            'data' => $createdEstimations,
+            'total_amount' => $totalAmount,
+            'customer_id' => $customerId,
+            'project_id' => $projectId,
+        ], 201);
     }
 
     /**
