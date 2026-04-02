@@ -20,9 +20,6 @@ class CustomerController extends Controller
                 ->without([
                     'lead',
                     'opportunity',
-                    'priceList',
-                    'paymentTerm',
-                    'primaryContact'
                 ]);
 
             if ($request->filled('search')) {
@@ -91,16 +88,8 @@ class CustomerController extends Controller
             'lead_id' => 'nullable|exists:leads,id',
             'opportunity_id' => 'nullable|exists:opportunities,id',
             'industry_id' => 'nullable|exists:industry_types,id',
-            'default_price_list_id' => 'nullable|exists:price_lists,id',
-            'payment_term_id' => 'nullable|exists:payment_terms,id',
             'email' => 'nullable|email',
             'phone' => 'nullable|string',
-            'website' => 'nullable|url',
-            'tax_id' => 'nullable|string',
-            'billing_currency' => 'nullable|string',
-            'bank_account_details' => 'nullable|string',
-            'print_language' => 'nullable|string',
-            'customer_details' => 'nullable|string',
         ]);
 
         $customer = Customer::create($validated);
@@ -111,9 +100,6 @@ class CustomerController extends Controller
             'lead',
             'opportunity',
             'industry',
-            'priceList',
-            'paymentTerm',
-            'primaryContact'
         ]);
 
         return response()->json($customer, 201);
@@ -127,9 +113,6 @@ class CustomerController extends Controller
             'lead',
             'opportunity',
             'industry',
-            'priceList',
-            'paymentTerm',
-            'primaryContact'
         ]);
 
         return response()->json($customer);
@@ -145,17 +128,8 @@ class CustomerController extends Controller
             'lead_id' => 'nullable|exists:leads,id',
             'opportunity_id' => 'nullable|exists:opportunities,id',
             'industry_id' => 'nullable|exists:industry_types,id',
-            'default_price_list_id' => 'nullable|exists:price_lists,id',
-            'payment_term_id' => 'nullable|exists:payment_terms,id',
-            
             'email' => 'nullable|email',
             'phone' => 'nullable|string',
-            'website' => 'nullable|url',
-            'tax_id' => 'nullable|string',
-            'billing_currency' => 'nullable|string',
-            'bank_account_details' => 'nullable|string',
-            'print_language' => 'nullable|string',
-            'customer_details' => 'nullable|string',
         ]);
 
         $customer->update($validated);
@@ -166,9 +140,6 @@ class CustomerController extends Controller
             'lead',
             'opportunity',
             'industry',
-            'priceList',
-            'paymentTerm',
-            'primaryContact'
         ]);
 
         return response()->json($customer);

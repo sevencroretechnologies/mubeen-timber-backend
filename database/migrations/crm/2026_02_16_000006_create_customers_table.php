@@ -19,22 +19,10 @@ return new class extends Migration
             $table->foreignId('lead_id')->nullable()->constrained('leads')->nullOnDelete();
             $table->foreignId('opportunity_id')->nullable()->constrained('opportunities')->nullOnDelete();
             $table->foreignId('industry_id')->nullable()->constrained('industry_types')->nullOnDelete();
-            $table->foreignId('default_price_list_id')->nullable()->constrained('price_lists')->nullOnDelete();
-            $table->foreignId('payment_term_id')->nullable()->constrained('payment_terms')->nullOnDelete();
-
-            // Assuming customer_contacts is the table for contacts
-           
 
             // Other Fields
             $table->string('email')->nullable();
             $table->string('phone')->nullable();
-            $table->string('website')->nullable();
-            $table->string('tax_id')->nullable();
-
-            $table->string('billing_currency')->nullable();
-            $table->text('bank_account_details')->nullable();
-            $table->string('print_language')->nullable();
-            $table->text('customer_details')->nullable();
 
             $table->timestamps();
             $table->softDeletes();
