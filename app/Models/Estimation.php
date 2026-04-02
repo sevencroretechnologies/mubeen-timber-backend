@@ -7,8 +7,15 @@ use Illuminate\Database\Eloquent\Model;
 class Estimation extends Model
 {
     protected $fillable = [
+        'customer_id',
+        'project_id',
         'product_id',
         'estimation_type',
+        'length',
+        'breadth',
+        'height',
+        'thickness',
+        'quantity',
         'cft',
         'cost_per_cft',
         'labor_charges',
@@ -17,6 +24,16 @@ class Estimation extends Model
 
     public function product()
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(\App\Models\Product::class);
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(\App\Models\Customer::class);
+    }
+
+    public function project()
+    {
+        return $this->belongsTo(\App\Models\Project::class);
     }
 }
