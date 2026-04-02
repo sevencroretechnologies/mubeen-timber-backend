@@ -14,7 +14,11 @@ class ProjectController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $query = Project::query();
+            $query = Project::with('customer:id,name');
+
+            if ($request->filled('customer_id')) {
+                $query->where('customer_id', $request->customer_id);
+            }
 
             if ($request->filled('search')) {
                 $search = $request->search;
@@ -58,6 +62,7 @@ class ProjectController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
+            'customer_id' => 'nullable|exists:customers,id',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'start_date' => 'nullable|date',
@@ -79,6 +84,7 @@ class ProjectController extends Controller
     {
         $project = Project::findOrFail($id);
         $validated = $request->validate([
+            'customer_id' => 'nullable|exists:customers,id',
             'name' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'start_date' => 'nullable|date',
