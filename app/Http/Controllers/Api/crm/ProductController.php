@@ -14,7 +14,7 @@ class ProductController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $query = Product::with(['customer', 'project']);
+            $query = Product::query();
 
             if ($request->filled('search')) {
                 $search = $request->search;
@@ -22,14 +22,6 @@ class ProductController extends Controller
                     $q->where('name', 'like', "%{$search}%")
                         ->orWhere('description', 'like', "%{$search}%");
                 });
-            }
-
-            if ($request->filled('customer_id')) {
-                $query->where('customer_id', $request->customer_id);
-            }
-
-            if ($request->filled('project_id')) {
-                $query->where('project_id', $request->project_id);
             }
 
             $perPage = $request->query('per_page', 15);
@@ -62,20 +54,17 @@ class ProductController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'customer_id' => 'nullable|integer|exists:customers,id',
-            'project_id' => 'nullable|integer|exists:projects,id',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
         ]);
 
         $product = Product::create($validated);
-        $product->load(['customer', 'project']);
         return response()->json($product, 201);
     }
 
     public function show(int $id): JsonResponse
     {
-        $product = Product::with(['customer', 'project'])->findOrFail($id);
+        $product = Product::findOrFail($id);
         return response()->json($product);
     }
 
@@ -83,13 +72,10 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($id);
         $validated = $request->validate([
-            'customer_id' => 'nullable|integer|exists:customers,id',
-            'project_id' => 'nullable|integer|exists:projects,id',
             'name' => 'nullable|string|max:255',
             'description' => 'nullable|string',
         ]);
         $product->update($validated);
-        $product->load(['customer', 'project']);
         return response()->json($product);
     }
 

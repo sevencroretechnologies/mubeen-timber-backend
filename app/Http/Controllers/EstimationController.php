@@ -101,8 +101,6 @@ class EstimationController extends Controller
             $productId = $estimationData['product_id'];
             if (empty($productId)) {
                 $product = \App\Models\Product::create([
-                    'customer_id' => $customerId,
-                    'project_id' => $projectId,
                     'name' => $estimationData['product_name'],
                     'description' => null,
                 ]);
@@ -148,7 +146,7 @@ class EstimationController extends Controller
      */
     public function show(string $id)
     {
-        $estimation = \App\Models\Estimation::with('product')->findOrFail($id);
+        $estimation = \App\Models\Estimation::with(['product', 'customer', 'project'])->findOrFail($id);
         return response()->json($estimation);
     }
 
@@ -182,6 +180,7 @@ class EstimationController extends Controller
         $validated['total_amount'] = $calculations['total_amount'];
 
         $estimation->update($validated);
+        $estimation->load(['product', 'customer', 'project']);
 
         return response()->json($estimation);
     }
