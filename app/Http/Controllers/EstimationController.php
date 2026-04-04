@@ -54,9 +54,15 @@ class EstimationController extends Controller
             'total_amount' => 'nullable|numeric|min:0',
         ]);
 
-        $calculations = $this->calculateCftAndTotal($validated);
-        $validated['cft'] = $calculations['cft'];
-        $validated['total_amount'] = $calculations['total_amount'];
+        // Skip calculation for Direct Amount mode (type 5)
+        if (intval($validated['estimation_type']) !== 5) {
+            $calculations = $this->calculateCftAndTotal($validated);
+            $validated['cft'] = $calculations['cft'];
+            $validated['total_amount'] = $calculations['total_amount'];
+        } else {
+            // Direct Amount mode - set CFT to null
+            $validated['cft'] = null;
+        }
 
         $estimation = \App\Models\Estimation::create($validated);
 
@@ -84,6 +90,7 @@ class EstimationController extends Controller
             'estimations.*.quantity' => 'nullable|integer|min:0',
             'estimations.*.cost_per_cft' => 'nullable|numeric|min:0',
             'estimations.*.labor_charges' => 'nullable|numeric|min:0',
+            'estimations.*.total_amount' => 'nullable|numeric|min:0',
         ]);
 
         // Create or use existing customer
@@ -120,8 +127,18 @@ class EstimationController extends Controller
                 $productId = $product->id;
             }
 
-            // Calculate CFT and total
-            $calculations = $this->calculateCftAndTotal($estimationData);
+            // Skip calculation for Direct Amount mode (type 5)
+            $estimationType = intval($estimationData['estimation_type']);
+            if ($estimationType !== 5) {
+                // Calculate CFT and total
+                $calculations = $this->calculateCftAndTotal($estimationData);
+                $cft = $calculations['cft'];
+                $estimationTotal = $calculations['total_amount'];
+            } else {
+                // Direct Amount mode
+                $cft = null;
+                $estimationTotal = $estimationData['total_amount'] ?? 0;
+            }
 
             // Create estimation
             $estimation = \App\Models\Estimation::create([
@@ -134,15 +151,15 @@ class EstimationController extends Controller
                 'height' => $estimationData['height'] ?? null,
                 'thickness' => $estimationData['thickness'] ?? null,
                 'quantity' => $estimationData['quantity'] ?? null,
-                'cft' => $calculations['cft'],
+                'cft' => $cft,
                 'cost_per_cft' => $estimationData['cost_per_cft'] ?? null,
                 'labor_charges' => $estimationData['labor_charges'] ?? null,
-                'total_amount' => $calculations['total_amount'],
+                'total_amount' => $estimationTotal,
             ]);
 
             $estimation->load(['product', 'customer', 'project']);
             $createdEstimations[] = $estimation;
-            $totalAmount += $calculations['total_amount'];
+            $totalAmount += $estimationTotal;
         }
 
         return response()->json([
@@ -187,10 +204,17 @@ class EstimationController extends Controller
         ]);
 
         $fullData = array_merge($estimation->toArray(), $validated);
-        $calculations = $this->calculateCftAndTotal($fullData);
-        
-        $validated['cft'] = $calculations['cft'];
-        $validated['total_amount'] = $calculations['total_amount'];
+
+        // Skip calculation for Direct Amount mode (type 5)
+        $estimationType = intval($fullData['estimation_type'] ?? $estimation->estimation_type);
+        if ($estimationType !== 5) {
+            $calculations = $this->calculateCftAndTotal($fullData);
+            $validated['cft'] = $calculations['cft'];
+            $validated['total_amount'] = $calculations['total_amount'];
+        } else {
+            // Direct Amount mode - set CFT to null
+            $validated['cft'] = null;
+        }
 
         $estimation->update($validated);
         $estimation->load(['product', 'customer', 'project']);
