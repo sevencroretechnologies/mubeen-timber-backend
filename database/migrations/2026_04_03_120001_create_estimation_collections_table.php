@@ -20,6 +20,7 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->timestamp('collected_at')->useCurrent();
             $table->foreignId('collected_by')->constrained('users')->onDelete('restrict');
+              $table->softDeletes();
             $table->timestamps();
         });
     }

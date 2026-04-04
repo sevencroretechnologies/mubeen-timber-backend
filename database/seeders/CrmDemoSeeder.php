@@ -122,30 +122,27 @@ class CrmDemoSeeder extends Seeder
         }
 
         $products = [
-            ['project_idx' => 0, 'name' => 'Teak Log (Grade A)', 'description' => 'Premium quality teak logs', 'rate' => 2500.00, 'amount' => 2500.00],
-            ['project_idx' => 0, 'name' => 'Sal Wood Plank', 'description' => 'Durable sal wood planks', 'rate' => 1800.00, 'amount' => 1800.00],
-            ['project_idx' => 0, 'name' => 'Sheesham Log', 'description' => 'Indian rosewood logs', 'rate' => 2200.00, 'amount' => 2200.00],
-            ['project_idx' => 1, 'name' => 'Treated Pine Beam', 'description' => 'Pressure-treated pine beams', 'rate' => 1200.00, 'amount' => 1200.00],
-            ['project_idx' => 1, 'name' => 'Polished Deodar Panel', 'description' => 'Polished Himalayan cedar panels', 'rate' => 1800.00, 'amount' => 1800.00],
-            ['project_idx' => 2, 'name' => 'Commercial Plywood 8x4', 'description' => 'Standard commercial grade plywood sheets', 'rate' => 1400.00, 'amount' => 1400.00],
-            ['project_idx' => 2, 'name' => 'Marine Plywood 8x4', 'description' => 'Water-resistant marine plywood', 'rate' => 2800.00, 'amount' => 2800.00],
-            ['project_idx' => 2, 'name' => 'MDF Board 6mm', 'description' => 'Medium density fibreboard', 'rate' => 900.00, 'amount' => 900.00],
-            ['project_idx' => 3, 'name' => 'Teak Dining Table Set', 'description' => '6-seater dining table with chairs', 'rate' => 45000.00, 'amount' => 45000.00],
-            ['project_idx' => 3, 'name' => 'Sheesham Bookshelf', 'description' => 'Solid wood bookshelf unit', 'rate' => 18000.00, 'amount' => 18000.00],
-            ['project_idx' => 4, 'name' => 'Custom Cutting Service', 'description' => 'Per-piece custom cutting and sizing', 'rate' => 50.00, 'amount' => 50.00],
-            ['project_idx' => 4, 'name' => 'Wood Treatment Service', 'description' => 'Anti-termite and weather treatment', 'rate' => 200.00, 'amount' => 200.00],
+            [ 'name' => 'Teak Log (Grade A)', 'description' => 'Premium quality teak logs'],
+            [ 'name' => 'Sal Wood Plank', 'description' => 'Durable sal wood planks'],
+            [ 'name' => 'Sheesham Log', 'description' => 'Indian rosewood logs'],
+            [ 'name' => 'Treated Pine Beam', 'description' => 'Pressure-treated pine beams'],
+            [ 'name' => 'Polished Deodar Panel', 'description' => 'Polished Himalayan cedar panels'],
+            [ 'name' => 'Commercial Plywood 8x4', 'description' => 'Standard commercial grade plywood sheets'],
+            [ 'name' => 'Marine Plywood 8x4', 'description' => 'Water-resistant marine plywood'],
+            [ 'name' => 'MDF Board 6mm', 'description' => 'Medium density fibreboard'],
+            [ 'name' => 'Teak Dining Table Set', 'description' => '6-seater dining table with chairs'],
+            [ 'name' => 'Sheesham Bookshelf', 'description' => 'Solid wood bookshelf unit'],
+            [ 'name' => 'Custom Cutting Service', 'description' => 'Per-piece custom cutting and sizing'],
+            [ 'name' => 'Wood Treatment Service', 'description' => 'Anti-termite and weather treatment'],
         ];
 
         foreach ($products as $p) {
-            $project = $createdProjects[$p['project_idx']];
             Product::firstOrCreate(
-                ['name' => $p['name']],
-                [
-                    'project_id' => $project->id,
-                    'name' => $p['name'],
-                    'description' => $p['description'],
-                ]
-            );
+    ['name' => $p['name']],
+    [
+        'description' => $p['description'],
+    ]
+);
         }
 
         // ============================================

@@ -27,7 +27,8 @@ return new class extends Migration
             $table->decimal('cost_per_cft', 10, 2)->nullable();
             $table->decimal('labor_charges', 10, 2)->nullable();
             $table->decimal('total_amount', 12, 2)->nullable();
-            $table->enum('status', array_column(EstimationStatus::cases(), 'value'))->default(EstimationStatus::DRAFT->value);
+            $table->enum('status', array_column(EstimationStatus::cases(), 'value'))->default(EstimationStatus::Draft->value);
+            $table->softDeletes();
             $table->timestamps();
         });
     }
