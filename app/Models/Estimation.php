@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\EstimationStatus;
 use Illuminate\Database\Eloquent\Model;
 
 class Estimation extends Model
@@ -19,7 +20,16 @@ class Estimation extends Model
         'cft',
         'cost_per_cft',
         'labor_charges',
-        'total_amount'
+        'total_amount',
+        'status'
+    ];
+
+    protected $casts = [
+        'cft' => 'decimal:2',
+        'cost_per_cft' => 'decimal:2',
+        'labor_charges' => 'decimal:2',
+        'total_amount' => 'decimal:2',
+        'status' => EstimationStatus::class,
     ];
 
     public function product()
@@ -35,5 +45,90 @@ class Estimation extends Model
     public function project()
     {
         return $this->belongsTo(\App\Models\Project::class);
+    }
+
+    public function collections()
+    {
+        return $this->hasMany(\App\Models\EstimationCollection::class);
+    }
+
+    /**
+     * Get total collected CFT for this estimation
+     */
+    public function getTotalCollectedCftAttribute(): float
+    {
+        return (float) $this->collections()->sum('quantity_cft');
+    }
+
+    /**
+     * Get remaining CFT to be collected
+     */
+    public function getRemainingCftAttribute(): float
+    {
+        return max(0, (float) $this->cft - $this->total_collected_cft);
+    }
+
+    /**
+     * Check if estimation can be approved
+     */
+    public function canBeApproved(): bool
+    {
+        return $this->status?->canBeApproved() ?? false;
+    }
+
+    /**
+     * Check if material can be collected
+     */
+    public function canCollectMaterial(): bool
+    {
+        return $this->status?->canCollectMaterial() ?? false;
+    }
+
+    /**
+     * Check if estimation is fully collected
+     */
+    public function isFullyCollected(): bool
+    {
+        return $this->total_collected_cft >= (float) $this->cft;
+    }
+
+    /**
+     * Approve the estimation
+     */
+    public function approve(): void
+    {
+        if ($this->canBeApproved()) {
+            $this->update(['status' => EstimationStatus::Approved]);
+        }
+    }
+
+    /**
+     * Cancel the estimation
+     */
+    public function cancel(): void
+    {
+        if ($this->status?->canBeCancelled()) {
+            $this->update(['status' => EstimationStatus::Cancelled]);
+        }
+    }
+
+    /**
+     * Mark as collected
+     */
+    public function markAsCollected(): void
+    {
+        if ($this->status?->canCollectMaterial()) {
+            $this->update(['status' => EstimationStatus::Collected]);
+        }
+    }
+
+    /**
+     * Update status based on collection progress
+     */
+    public function updateStatusBasedOnCollection(): void
+    {
+        if ($this->status === EstimationStatus::Approved && $this->collections()->exists()) {
+            $this->update(['status' => EstimationStatus::PartiallyCollected]);
+        }
     }
 }

@@ -118,7 +118,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('products', ProductController::class);
     Route::apiResource('opportunity-products', OpportunityProductController::class);
     Route::apiResource('estimations', EstimationController::class);
-   
+
+    // Estimation Status & Material Collection
+    Route::post('estimations/{id}/approve', [EstimationController::class, 'approve']);
+    Route::post('estimations/{id}/cancel', [EstimationController::class, 'cancel']);
+    Route::post('estimations/{id}/mark-complete', [EstimationController::class, 'markAsCollected']);
+    Route::post('estimations/{id}/collect', [EstimationController::class, 'collectMaterial']);
+    Route::get('estimations/{id}/collections', [EstimationController::class, 'getCollections']);
+    Route::get('estimations-stock/available', [EstimationController::class, 'getAvailableStock']);
+
 
     // ============================================
     // CRM - Sales Tasks
