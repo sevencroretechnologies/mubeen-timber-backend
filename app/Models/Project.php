@@ -18,13 +18,11 @@ class Project extends Model
         'name',
         'description',
         'customer_id',
+        'product_id',
 
     ];
 
-    protected $casts = [
-        'start_date' => 'date',
-        'end_date' => 'date',
-    ];
+   
 
     public function customer(): BelongsTo
     {

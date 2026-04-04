@@ -14,4 +14,9 @@ class Product extends Model
         'name',
         'description',
     ];
+
+    public function project()
+{
+    return $this->belongsTo(Project::class);
+}
 }

@@ -65,8 +65,7 @@ class ProjectController extends Controller
             'customer_id' => 'nullable|exists:customers,id',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'start_date' => 'nullable|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'product_id' => 'nullable|exists:products,id',
             'status' => 'nullable|string|in:active,completed,on_hold,cancelled',
         ]);
 
