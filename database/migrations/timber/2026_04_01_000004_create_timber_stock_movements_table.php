@@ -16,7 +16,7 @@ return new class extends Migration
             $table->enum('movement_type', ['in', 'out', 'adjustment', 'return']);
             $table->decimal('quantity', 12, 3);
             $table->string('unit', 20)->nullable();
-            $table->enum('reference_type', ['purchase_order', 'job_card', 'material_requisition', 'manual']);
+            $table->enum('reference_type', ['purchase_order', 'job_card', 'material_requisition', 'manual', 'estimation_collection']);
             $table->unsignedBigInteger('reference_id')->nullable();
             $table->decimal('unit_cost', 10, 2)->nullable();
             $table->decimal('total_cost', 12, 2)->nullable();

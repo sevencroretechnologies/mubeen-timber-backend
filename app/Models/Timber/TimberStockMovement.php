@@ -2,6 +2,7 @@
 
 namespace App\Models\Timber;
 
+use App\Enums\StockMovementReferenceType;
 use App\Models\User;
 use App\Traits\HasOrgAndCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -42,6 +43,7 @@ class TimberStockMovement extends Model
         'before_quantity' => 'decimal:3',
         'after_quantity' => 'decimal:3',
         'movement_date' => 'date',
+        'reference_type' => StockMovementReferenceType::class,
     ];
 
     public function stockLedger()
