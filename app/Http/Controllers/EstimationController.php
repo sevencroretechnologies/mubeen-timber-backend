@@ -12,11 +12,35 @@ class EstimationController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $estimations = \App\Models\Estimation::with(['product', 'customer', 'project'])
-            ->withCount('collections')
-            ->get();
+        $query = \App\Models\Estimation::with(['product', 'customer', 'project'])
+            ->withCount('collections');
+
+        // Filter by project_id if provided
+        if ($request->has('project_id')) {
+            $query->where('project_id', $request->project_id);
+        }
+
+        // Filter by customer_id if provided
+        if ($request->has('customer_id')) {
+            $query->where('customer_id', $request->customer_id);
+        }
+
+        // Filter by product_id if provided
+        if ($request->has('product_id')) {
+            $query->where('product_id', $request->product_id);
+        }
+
+        // Filter by status if provided
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Order by latest first
+        $query->orderBy('created_at', 'desc');
+
+        $estimations = $query->get();
 
         // Append total_collected_cft to each estimation
         $estimations->each(function ($estimation) {
