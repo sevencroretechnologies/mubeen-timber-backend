@@ -9,7 +9,6 @@ class Estimation extends Model
 {
     protected $fillable = [
         'customer_id',
-        'project_id',
         'product_id',
         'estimation_type',
         'length',
@@ -25,10 +24,6 @@ class Estimation extends Model
     ];
 
     protected $casts = [
-        'cft' => 'decimal:2',
-        'cost_per_cft' => 'decimal:2',
-        'labor_charges' => 'decimal:2',
-        'total_amount' => 'decimal:2',
         'status' => EstimationStatus::class,
     ];
 
@@ -40,11 +35,6 @@ class Estimation extends Model
     public function customer()
     {
         return $this->belongsTo(\App\Models\Customer::class);
-    }
-
-    public function project()
-    {
-        return $this->belongsTo(\App\Models\Project::class);
     }
 
     public function collections()
@@ -82,14 +72,6 @@ class Estimation extends Model
     public function canCollectMaterial(): bool
     {
         return $this->status?->canCollectMaterial() ?? false;
-    }
-
-    /**
-     * Check if estimation is fully collected
-     */
-    public function isFullyCollected(): bool
-    {
-        return $this->total_collected_cft >= (float) $this->cft;
     }
 
     /**

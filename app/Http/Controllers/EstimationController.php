@@ -14,8 +14,7 @@ class EstimationController extends Controller
      */
     public function index(Request $request)
     {
-        $query = \App\Models\Estimation::with(['product', 'customer', 'project'])
-            ->withCount('collections');
+        $query = \App\Models\Estimation::with(['product', 'customer']);
 
         // Filter by project_id if provided
         if ($request->has('project_id')) {
@@ -41,12 +40,6 @@ class EstimationController extends Controller
         $query->orderBy('created_at', 'desc');
 
         $estimations = $query->get();
-
-        // Append total_collected_cft to each estimation
-        $estimations->each(function ($estimation) {
-            $estimation->total_collected_cft = $estimation->total_collected_cft ?? 0;
-            $estimation->remaining_cft = $estimation->remaining_cft ?? 0;
-        });
 
         return response()->json($estimations);
     }
@@ -237,7 +230,7 @@ class EstimationController extends Controller
      */
     public function show(string $id)
     {
-        $estimation = \App\Models\Estimation::with(['product', 'customer', 'project'])->findOrFail($id);
+        $estimation = \App\Models\Estimation::with(['product', 'customer'])->findOrFail($id);
         return response()->json($estimation);
     }
 
@@ -250,7 +243,6 @@ class EstimationController extends Controller
 
         $validated = $request->validate([
             'customer_id' => 'sometimes|exists:customers,id',
-            'project_id' => 'nullable|exists:projects,id',
             'product_id' => 'sometimes|exists:products,id',
             'estimation_type' => 'sometimes|integer',
             'length' => 'nullable|numeric|min:0',
@@ -356,7 +348,7 @@ class EstimationController extends Controller
 
         return response()->json([
             'message' => 'Estimation approved successfully',
-            'data' => $estimation->load(['product', 'customer', 'project'])
+            'data' => $estimation->load(['product', 'customer'])
         ]);
     }
 
@@ -371,7 +363,7 @@ class EstimationController extends Controller
 
         return response()->json([
             'message' => 'Estimation cancelled successfully',
-            'data' => $estimation->load(['product', 'customer', 'project'])
+            'data' => $estimation->load(['product', 'customer'])
         ]);
     }
 
@@ -392,7 +384,7 @@ class EstimationController extends Controller
 
         return response()->json([
             'message' => 'Estimation marked as collected',
-            'data' => $estimation->load(['product', 'customer', 'project'])
+            'data' => $estimation->load(['product', 'customer'])
         ]);
     }
 
