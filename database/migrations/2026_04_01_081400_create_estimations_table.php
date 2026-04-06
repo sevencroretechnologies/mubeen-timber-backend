@@ -7,35 +7,45 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('estimations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('customer_id')->constrained('customers')->onDelete('cascade');
-            $table->foreignId('project_id')->nullable()->constrained('projects')->onDelete('cascade');
-            $table->foreignId('product_id')->constrained('products')->onDelete('cascade');
-            $table->integer('estimation_type');
-            $table->decimal('length', 10, 2)->nullable();
-            $table->decimal('breadth', 10, 2)->nullable();
-            $table->decimal('height', 10, 2)->nullable();
-            $table->decimal('thickness', 10, 2)->nullable();
-            $table->integer('quantity')->nullable();
-            $table->decimal('cft', 10, 2)->nullable();
-            $table->decimal('cost_per_cft', 10, 2)->nullable();
-            $table->decimal('labor_charges', 10, 2)->nullable();
-            $table->decimal('total_amount', 12, 2)->nullable();
-            $table->enum('status', array_column(EstimationStatus::cases(), 'value'))->default(EstimationStatus::Draft->value);
+
+            // Organization & Company
+            $table->foreignId('org_id')
+                  ->nullable()
+                  ->constrained('organizations')
+                  ->nullOnDelete();
+
+            $table->foreignId('company_id')
+                  ->nullable()
+                  ->constrained('companies')
+                  ->nullOnDelete();
+
+            // Core Relations
+            $table->foreignId('customer_id')
+                  ->constrained('customers')
+                  ->cascadeOnDelete();
+
+           
+
+            $table->foreignId('product_id')
+                  ->constrained('products')
+                  ->cascadeOnDelete();
+
+            // Description
+            $table->text('description')->nullable();
+
+            // Status
+            $table->enum('status', array_column(EstimationStatus::cases(), 'value'))
+                  ->default(EstimationStatus::Draft->value);
+
             $table->softDeletes();
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('estimations');
