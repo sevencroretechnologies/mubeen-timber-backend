@@ -53,7 +53,7 @@ class EstimationController extends Controller
 
     /**
      * Store a newly created resource in storage.
-     * Supports both single and bulk estimation creation with optional customer/project creation.
+     * Supports both single and bulk estimation creation with optional customer/project/product creation.
      */
     public function store(Request $request)
     {
@@ -65,7 +65,8 @@ class EstimationController extends Controller
         $validated = $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'project_id' => 'nullable|exists:projects,id',
-            'product_id' => 'required|exists:products,id',
+            'product_id' => 'nullable|integer|exists:products,id',
+            'product_name' => 'nullable|string|required_if:product_id,null|max:255',
             'estimation_type' => 'required|integer',
             'length' => 'nullable|numeric|min:0',
             'breadth' => 'nullable|numeric|min:0',
@@ -78,19 +79,55 @@ class EstimationController extends Controller
             'total_amount' => 'nullable|numeric|min:0',
         ]);
 
-        // Skip calculation for Direct Amount mode (type 5)
-        if (intval($validated['estimation_type']) !== 5) {
-            $calculations = $this->calculateCftAndTotal($validated);
-            $validated['cft'] = $calculations['cft'];
-            $validated['total_amount'] = $calculations['total_amount'];
-        } else {
-            // Direct Amount mode - set CFT to null
-            $validated['cft'] = null;
+        DB::beginTransaction();
+        try {
+            // Create or use existing product
+            $productId = $validated['product_id'] ?? null;
+            if (empty($productId)) {
+                $product = \App\Models\Product::create([
+                    'name' => $validated['product_name'],
+                    'description' => null,
+                ]);
+                $productId = $product->id;
+            }
+
+            // Prepare estimation data - remove product_name as it's not a column in estimations table
+            $estimationData = [
+                'customer_id' => $validated['customer_id'],
+                'project_id' => $validated['project_id'] ?? null,
+                'product_id' => $productId,
+                'estimation_type' => $validated['estimation_type'],
+                'length' => $validated['length'] ?? null,
+                'breadth' => $validated['breadth'] ?? null,
+                'height' => $validated['height'] ?? null,
+                'thickness' => $validated['thickness'] ?? null,
+                'quantity' => $validated['quantity'] ?? null,
+                'cft' => $validated['cft'] ?? null,
+                'cost_per_cft' => $validated['cost_per_cft'] ?? null,
+                'labor_charges' => $validated['labor_charges'] ?? null,
+                'total_amount' => $validated['total_amount'] ?? 0,
+            ];
+
+            // Skip calculation for Direct Amount mode (type 5)
+            if (intval($validated['estimation_type']) !== 5) {
+                $calculations = $this->calculateCftAndTotal($estimationData);
+                $estimationData['cft'] = $calculations['cft'];
+                $estimationData['total_amount'] = $calculations['total_amount'];
+            } else {
+                // Direct Amount mode - set CFT to null
+                $estimationData['cft'] = null;
+            }
+
+            $estimation = \App\Models\Estimation::create($estimationData);
+            $estimation->load(['product', 'customer', 'project']);
+
+            DB::commit();
+
+            return response()->json($estimation, 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
         }
-
-        $estimation = \App\Models\Estimation::create($validated);
-
-        return response()->json($estimation, 201);
     }
 
     /**
@@ -267,7 +304,7 @@ class EstimationController extends Controller
         $h = !empty($data['height']) ? floatval($data['height']) : 1;
         $t = !empty($data['thickness']) ? floatval($data['thickness']) : 1;
         $q = !empty($data['quantity']) ? floatval($data['quantity']) : 1;
-        
+
         $type = !empty($data['estimation_type']) ? intval($data['estimation_type']) : 1;
         $cftPerUnit = 0;
 
@@ -293,7 +330,7 @@ class EstimationController extends Controller
 
         $cost = !empty($data['cost_per_cft']) ? floatval($data['cost_per_cft']) : 0;
         $labor = !empty($data['labor_charges']) ? floatval($data['labor_charges']) : 0;
-        
+
         $total = ($finalCft * $cost) + $labor;
 
         return [
