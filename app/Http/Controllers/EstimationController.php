@@ -17,6 +17,16 @@ class EstimationController extends Controller
         $query = \App\Models\Estimation::with(['product', 'customer', 'project'])
             ->withCount('collections');
 
+        // Filter by org_id if provided
+        if ($request->has('org_id')) {
+            $query->where('org_id', $request->org_id);
+        }
+
+        // Filter by company_id if provided
+        if ($request->has('company_id')) {
+            $query->where('company_id', $request->company_id);
+        }
+
         // Filter by project_id if provided
         if ($request->has('project_id')) {
             $query->where('project_id', $request->project_id);
@@ -53,20 +63,28 @@ class EstimationController extends Controller
 
     /**
      * Store a newly created resource in storage.
-     * Supports both single and bulk estimation creation with optional customer/project/product creation.
+     * Supports single, bulk, and multi-product (items[]) estimation creation.
      */
     public function store(Request $request)
     {
-        // Handle bulk estimations
+        // Handle bulk estimations (legacy format)
         if ($request->has('estimations') && is_array($request->estimations)) {
             return $this->storeBulk($request);
         }
 
+        // Handle multi-product items[] format (new CRM-style)
+        if ($request->has('items') && is_array($request->items)) {
+            return $this->storeWithItems($request);
+        }
+
         $validated = $request->validate([
+            'org_id' => 'nullable|integer',
+            'company_id' => 'nullable|integer',
             'customer_id' => 'required|exists:customers,id',
             'project_id' => 'nullable|exists:projects,id',
             'product_id' => 'nullable|integer|exists:products,id',
             'product_name' => 'nullable|string|required_if:product_id,null|max:255',
+            'description' => 'nullable|string',
             'estimation_type' => 'required|integer',
             'length' => 'nullable|numeric|min:0',
             'breadth' => 'nullable|numeric|min:0',
@@ -93,9 +111,12 @@ class EstimationController extends Controller
 
             // Prepare estimation data - remove product_name as it's not a column in estimations table
             $estimationData = [
+                'org_id' => $validated['org_id'] ?? null,
+                'company_id' => $validated['company_id'] ?? null,
                 'customer_id' => $validated['customer_id'],
                 'project_id' => $validated['project_id'] ?? null,
                 'product_id' => $productId,
+                'description' => $validated['description'] ?? null,
                 'estimation_type' => $validated['estimation_type'],
                 'length' => $validated['length'] ?? null,
                 'breadth' => $validated['breadth'] ?? null,
@@ -131,15 +152,91 @@ class EstimationController extends Controller
     }
 
     /**
+     * Store estimation with multiple product items (CRM-style).
+     * Creates one estimation and optionally stores items in estimation_items table.
+     */
+    private function storeWithItems(Request $request)
+    {
+        $validated = $request->validate([
+            'org_id' => 'nullable|integer',
+            'company_id' => 'nullable|integer',
+            'customer_id' => 'required|exists:customers,id',
+            'project_id' => 'nullable|exists:projects,id',
+            'description' => 'nullable|string',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'nullable|integer|exists:products,id',
+            'items.*.product_name' => 'nullable|string|max:255',
+            'items.*.description' => 'nullable|string',
+            'items.*.quantity' => 'nullable|integer|min:1',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            $estimation = \App\Models\Estimation::create([
+                'org_id' => $validated['org_id'] ?? null,
+                'company_id' => $validated['company_id'] ?? null,
+                'customer_id' => $validated['customer_id'],
+                'project_id' => $validated['project_id'] ?? null,
+                'description' => $validated['description'] ?? null,
+                'status' => 'draft',
+            ]);
+
+            if (isset($validated['items']) && is_array($validated['items'])) {
+                foreach ($validated['items'] as $item) {
+                    // Resolve product_id: use existing or create new product inline
+                    $productId = $item['product_id'] ?? null;
+                    if (empty($productId) && !empty($item['product_name'])) {
+                        $product = \App\Models\Product::create([
+                            'name' => $item['product_name'],
+                            'description' => null,
+                        ]);
+                        $productId = $product->id;
+                    }
+
+                    // Store first item's product_id on main estimation for backward compatibility
+                    if (!$estimation->product_id && $productId) {
+                        $estimation->product_id = $productId;
+                        $estimation->save();
+                    }
+
+                    // Store in estimation_items table if the model exists
+                    if (class_exists(\App\Models\EstimationItem::class)) {
+                        \App\Models\EstimationItem::create([
+                            'estimation_id' => $estimation->id,
+                            'product_id' => $productId,
+                            'description' => $item['description'] ?? null,
+                            'quantity' => $item['quantity'] ?? 1,
+                        ]);
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return response()->json(
+                $estimation->load(['customer', 'project', 'product']),
+                201
+            );
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Store bulk estimations with optional customer/project/product creation.
      */
     private function storeBulk(Request $request)
     {
         $validated = $request->validate([
+            'org_id' => 'nullable|integer',
+            'company_id' => 'nullable|integer',
             'customer_id' => 'nullable|integer|exists:customers,id',
             'customer_name' => 'nullable|string|required_if:customer_id,null|max:255',
             'project_id' => 'nullable|integer|exists:projects,id',
             'project_name' => 'nullable|string|required_if:project_id,null|max:255',
+            'description' => 'nullable|string',
             'estimations' => 'required|array|min:1',
             'estimations.*.product_id' => 'nullable|integer|exists:products,id',
             'estimations.*.product_name' => 'nullable|string|required_if:estimations.*.product_id,null|max:255',
@@ -203,9 +300,12 @@ class EstimationController extends Controller
 
             // Create estimation
             $estimation = \App\Models\Estimation::create([
+                'org_id' => $validated['org_id'] ?? null,
+                'company_id' => $validated['company_id'] ?? null,
                 'customer_id' => $customerId,
                 'project_id' => $projectId,
                 'product_id' => $productId,
+                'description' => $validated['description'] ?? null,
                 'estimation_type' => $estimationData['estimation_type'],
                 'length' => $estimationData['length'] ?? null,
                 'breadth' => $estimationData['breadth'] ?? null,
@@ -243,15 +343,19 @@ class EstimationController extends Controller
 
     /**
      * Update the specified resource in storage.
+     * Supports both legacy single-product and new multi-product (items[]) formats.
      */
     public function update(Request $request, string $id)
     {
         $estimation = \App\Models\Estimation::findOrFail($id);
 
         $validated = $request->validate([
+            'org_id' => 'nullable|integer',
+            'company_id' => 'nullable|integer',
             'customer_id' => 'sometimes|exists:customers,id',
             'project_id' => 'nullable|exists:projects,id',
             'product_id' => 'sometimes|exists:products,id',
+            'description' => 'nullable|string',
             'estimation_type' => 'sometimes|integer',
             'length' => 'nullable|numeric|min:0',
             'breadth' => 'nullable|numeric|min:0',
@@ -262,25 +366,85 @@ class EstimationController extends Controller
             'cost_per_cft' => 'nullable|numeric|min:0',
             'labor_charges' => 'nullable|numeric|min:0',
             'total_amount' => 'nullable|numeric|min:0',
+            'items' => 'nullable|array',
+            'items.*.product_id' => 'nullable|integer|exists:products,id',
+            'items.*.product_name' => 'nullable|string|max:255',
+            'items.*.description' => 'nullable|string',
+            'items.*.quantity' => 'nullable|integer|min:1',
         ]);
 
-        $fullData = array_merge($estimation->toArray(), $validated);
+        DB::beginTransaction();
+        try {
+            // Handle items[] if provided (multi-product update)
+            if ($request->has('items') && is_array($request->items)) {
+                // Clear existing estimation items if the model exists
+                if (class_exists(\App\Models\EstimationItem::class)) {
+                    \App\Models\EstimationItem::where('estimation_id', $estimation->id)->delete();
+                }
 
-        // Skip calculation for Direct Amount mode (type 5)
-        $estimationType = intval($fullData['estimation_type'] ?? $estimation->estimation_type);
-        if ($estimationType !== 5) {
-            $calculations = $this->calculateCftAndTotal($fullData);
-            $validated['cft'] = $calculations['cft'];
-            $validated['total_amount'] = $calculations['total_amount'];
-        } else {
-            // Direct Amount mode - set CFT to null
-            $validated['cft'] = null;
+                $firstProductId = null;
+                foreach ($validated['items'] as $item) {
+                    // Resolve product_id: use existing or create new product inline
+                    $productId = $item['product_id'] ?? null;
+                    if (empty($productId) && !empty($item['product_name'])) {
+                        $product = \App\Models\Product::create([
+                            'name' => $item['product_name'],
+                            'description' => null,
+                        ]);
+                        $productId = $product->id;
+                    }
+
+                    // Track first product for backward compatibility
+                    if (!$firstProductId && $productId) {
+                        $firstProductId = $productId;
+                    }
+
+                    // Store in estimation_items table if the model exists
+                    if (class_exists(\App\Models\EstimationItem::class)) {
+                        \App\Models\EstimationItem::create([
+                            'estimation_id' => $estimation->id,
+                            'product_id' => $productId,
+                            'description' => $item['description'] ?? null,
+                            'quantity' => $item['quantity'] ?? 1,
+                        ]);
+                    }
+                }
+
+                // Update main estimation product_id for backward compatibility
+                if ($firstProductId) {
+                    $validated['product_id'] = $firstProductId;
+                }
+
+                // Remove items from validated since it's not a column
+                unset($validated['items']);
+            }
+
+            $fullData = array_merge($estimation->toArray(), $validated);
+
+            // Skip calculation for Direct Amount mode (type 5) or when estimation_type is not set
+            $estimationType = intval($fullData['estimation_type'] ?? $estimation->estimation_type ?? 0);
+            if ($estimationType && $estimationType !== 5) {
+                $calculations = $this->calculateCftAndTotal($fullData);
+                $validated['cft'] = $calculations['cft'];
+                $validated['total_amount'] = $calculations['total_amount'];
+            } elseif ($estimationType === 5) {
+                // Direct Amount mode - set CFT to null
+                $validated['cft'] = null;
+            }
+
+            // Remove items key if still present
+            unset($validated['items']);
+
+            $estimation->update($validated);
+            $estimation->load(['product', 'customer', 'project']);
+
+            DB::commit();
+
+            return response()->json($estimation);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-
-        $estimation->update($validated);
-        $estimation->load(['product', 'customer', 'project']);
-
-        return response()->json($estimation);
     }
 
     /**
