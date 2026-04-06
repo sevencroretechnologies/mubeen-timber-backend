@@ -16,11 +16,7 @@ return new class extends Migration
                   ->nullable()
                   ->constrained('customers')
                   ->nullOnDelete();
-                    $table->foreignId('product_id')
-                  ->nullable()
-                  ->constrained('products')
-                  ->nullOnDelete();
-            $table->softDeletes();
+                    $table->softDeletes();
             $table->timestamps();
         });
     }
