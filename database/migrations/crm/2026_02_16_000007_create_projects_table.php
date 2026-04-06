@@ -10,6 +10,8 @@ return new class extends Migration
     {
         Schema::create('projects', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('org_id')->nullable()->constrained('organizations')->nullOnDelete();
+            $table->foreignId('company_id')->nullable()->constrained('companies')->nullOnDelete();
             $table->string('name')->unique();
             $table->text('description')->nullable();
              $table->foreignId('customer_id')

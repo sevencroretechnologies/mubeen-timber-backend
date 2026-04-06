@@ -54,6 +54,8 @@ class ProductController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
+            'org_id' => 'nullable|exists:organizations,id',
+            'company_id' => 'nullable|exists:companies,id',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
         ]);
@@ -72,6 +74,8 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($id);
         $validated = $request->validate([
+            'org_id' => 'nullable|exists:organizations,id',
+            'company_id' => 'nullable|exists:companies,id',
             'name' => 'nullable|string|max:255',
             'description' => 'nullable|string',
         ]);

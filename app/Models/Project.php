@@ -14,12 +14,12 @@ class Project extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'org_id',
+        'company_id',
         'customer_id',
         'name',
         'description',
-        'customer_id',
         'product_id',
-
     ];
 
    
@@ -32,5 +32,15 @@ class Project extends Model
     public function products(): HasMany
     {
         return $this->hasMany(Product::class);
+    }
+
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class, 'org_id');
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class, 'company_id');
     }
 }

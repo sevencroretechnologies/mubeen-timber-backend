@@ -81,6 +81,8 @@ class CustomerController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
+            'org_id' => 'nullable|exists:organizations,id',
+            'company_id' => 'nullable|exists:companies,id',
             'name' => 'required|string|max:255',
             'customer_type' => ['nullable', new Enum(CustomerType::class)],
             'customer_group_id' => 'nullable|exists:customer_groups,id',
@@ -121,6 +123,8 @@ class CustomerController extends Controller
     public function update(Request $request, Customer $customer): JsonResponse
     {
         $validated = $request->validate([
+            'org_id' => 'nullable|exists:organizations,id',
+            'company_id' => 'nullable|exists:companies,id',
             'name' => 'sometimes|string|max:255',
             'customer_type' => ['nullable', new Enum(CustomerType::class)],
             'customer_group_id' => 'nullable|exists:customer_groups,id',

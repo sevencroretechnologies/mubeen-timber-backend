@@ -9,6 +9,8 @@ return new class extends Migration {
     {
         Schema::create('products', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('org_id')->nullable()->constrained('organizations')->nullOnDelete();
+            $table->foreignId('company_id')->nullable()->constrained('companies')->nullOnDelete();
             $table->string('name');
             $table->text('description')->nullable();
             $table->softDeletes();

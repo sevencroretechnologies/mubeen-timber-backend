@@ -62,6 +62,8 @@ class ProjectController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
+            'org_id' => 'nullable|exists:organizations,id',
+            'company_id' => 'nullable|exists:companies,id',
             'customer_id' => 'nullable|exists:customers,id',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -83,6 +85,8 @@ class ProjectController extends Controller
     {
         $project = Project::findOrFail($id);
         $validated = $request->validate([
+            'org_id' => 'nullable|exists:organizations,id',
+            'company_id' => 'nullable|exists:companies,id',
             'customer_id' => 'nullable|exists:customers,id',
             'name' => 'nullable|string|max:255',
             'description' => 'nullable|string',
