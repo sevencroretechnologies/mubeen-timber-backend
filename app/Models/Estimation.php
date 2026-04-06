@@ -9,17 +9,10 @@ class Estimation extends Model
 {
     protected $fillable = [
         'customer_id',
+        'org_id',
+        'company_id',
         'product_id',
-        'estimation_type',
-        'length',
-        'breadth',
-        'height',
-        'thickness',
-        'quantity',
-        'cft',
-        'cost_per_cft',
-        'labor_charges',
-        'total_amount',
+        'description',
         'status'
     ];
 
