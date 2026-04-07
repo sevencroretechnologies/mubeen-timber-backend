@@ -35,6 +35,11 @@ class Estimation extends Model
         return $this->hasMany(\App\Models\EstimationCollection::class);
     }
 
+    public function otherCharge()
+    {
+        return $this->hasOne(\App\Models\EstimationOtherCharge::class);
+    }
+
     /**
      * Get total collected CFT for this estimation
      */
