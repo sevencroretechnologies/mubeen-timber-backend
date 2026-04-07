@@ -77,7 +77,7 @@ class ProjectController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $project = Project::with('products')->findOrFail($id);
+        $project = Project::findOrFail($id);
         return response()->json($project);
     }
 

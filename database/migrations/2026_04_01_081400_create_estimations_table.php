@@ -38,6 +38,8 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->text('additional_notes')->nullable();
 
+            // Financial totals
+            $table->decimal('grand_total', 12, 2)->default(0)->after('additional_notes');
 
             // Status
             $table->enum('status', array_column(EstimationStatus::cases(), 'value'))

@@ -14,26 +14,23 @@ class Estimation extends Model
         'project_id',
         'description',
         'additional_notes',
+        'grand_total',
         'status'
     ];
 
     protected $casts = [
         'status' => EstimationStatus::class,
+        'grand_total' => 'decimal:2',
     ];
 
-    public function product()
+    public function project()
     {
-        return $this->belongsTo(\App\Models\Product::class);
+        return $this->belongsTo(\App\Models\Project::class);
     }
 
     public function customer()
     {
         return $this->belongsTo(\App\Models\Customer::class);
-    }
-
-    public function project()
-    {
-        return $this->belongsTo(\App\Models\Project::class);
     }
 
     public function collections()
@@ -63,6 +60,16 @@ class Estimation extends Model
     public function otherCharge()
     {
         return $this->hasOne(\App\Models\EstimationOtherCharge::class);
+    }
+
+    public function products()
+    {
+        return $this->hasMany(\App\Models\EstimationProduct::class);
+    }
+
+    public function attachments()
+    {
+        return $this->hasMany(\App\Models\EstimationAttachment::class);
     }
 
     /**

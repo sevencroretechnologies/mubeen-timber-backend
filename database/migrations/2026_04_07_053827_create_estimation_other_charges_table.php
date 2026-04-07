@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             
             // Foreign Keys
-            $table->foreignId('estimation_id')->constrained('estimations')->nullOnDelete();
+            $table->foreignId('estimation_id')->nullable()->constrained('estimations')->nullOnDelete();
             $table->foreignId('org_id')->nullable()->constrained('organizations')->nullOnDelete();
             $table->foreignId('company_id')->nullable()->constrained('companies')->nullOnDelete();
 
@@ -29,7 +29,7 @@ return new class extends Migration
             // Other Description
             $table->decimal('other_description_amount', 15, 2)->default(0)->nullable();
             $table->text('other_description')->nullable();
-
+            $table->softDeletes();
             $table->timestamps();
         });
     }
