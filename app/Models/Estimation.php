@@ -13,6 +13,7 @@ class Estimation extends Model
         'company_id',
         'project_id',
         'description',
+        'additional_notes',
         'status'
     ];
 
