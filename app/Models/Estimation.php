@@ -21,9 +21,9 @@ class Estimation extends Model
         'status' => EstimationStatus::class,
     ];
 
-    public function product()
+    public function project()
     {
-        return $this->belongsTo(\App\Models\Product::class);
+        return $this->belongsTo(\App\Models\Project::class);
     }
 
     public function customer()
@@ -39,6 +39,11 @@ class Estimation extends Model
     public function otherCharge()
     {
         return $this->hasOne(\App\Models\EstimationOtherCharge::class);
+    }
+
+    public function attachments()
+    {
+        return $this->hasMany(\App\Models\EstimationAttachment::class);
     }
 
     /**

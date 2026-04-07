@@ -73,6 +73,7 @@ class EstimationController extends Controller
                 'customer_id' => $validated['customer_id'],
                 'project_id' => $validated['project_id'],
                 'description' => $validated['description'] ?? null,
+                'additional_notes' => $validated['additional_notes'] ?? null,
                 'status' => $validated['status'] ?? EstimationStatus::Draft->value,
             ]);
 
