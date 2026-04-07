@@ -13,6 +13,7 @@ class Estimation extends Model
         'customer_id',
         'project_id',
         'description',
+        'additional_notes',
         'status'
     ];
 
@@ -57,6 +58,11 @@ class Estimation extends Model
     public function company()
     {
         return $this->belongsTo(\App\Models\Company::class, 'company_id');
+    }
+
+    public function otherCharge()
+    {
+        return $this->hasOne(\App\Models\EstimationOtherCharge::class);
     }
 
     /**

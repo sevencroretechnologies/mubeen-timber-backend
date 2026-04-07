@@ -66,6 +66,7 @@ class EstimationController extends Controller
             'customer_id' => 'required|exists:customers,id',
             'project_id' => 'required|integer|exists:projects,id',
             'description' => 'nullable|string',
+            'additional_notes' => 'nullable|string',
             'status' => 'nullable|string|in:draft,pending,approved,rejected',
         ]);
 
@@ -181,6 +182,7 @@ class EstimationController extends Controller
             'customer_id' => 'sometimes|exists:customers,id',
             'project_id' => 'sometimes|exists:projects,id',
             'description' => 'nullable|string',
+            'additional_notes'=> 'nullable|string',
             'status' => 'nullable|string|in:draft,pending,approved,rejected',
             'items' => 'nullable|array',
             'items.*.product_id' => 'nullable|integer|exists:products,id',
@@ -328,7 +330,7 @@ class EstimationController extends Controller
             'wood_type_id' => 'required|exists:timber_wood_types,id',
             'warehouse_id' => 'required|exists:timber_warehouses,id',
             'quantity_cft' => 'required|numeric|min:0.001',
-            'notes' => 'nullable|string|max:1000',
+            'additional_notes' => 'nullable|string|max:1000',
         ]);
 
         // Check if stock is available
@@ -351,7 +353,7 @@ class EstimationController extends Controller
                 'wood_type_id' => $validated['wood_type_id'],
                 'warehouse_id' => $validated['warehouse_id'],
                 'quantity_cft' => $validated['quantity_cft'],
-                'notes' => $validated['notes'] ?? null,
+                'additional_notes' => $validated['additional_notes'] ?? null,
                 'collected_at' => now(),
                 'collected_by' => auth()->id(),
             ]);
