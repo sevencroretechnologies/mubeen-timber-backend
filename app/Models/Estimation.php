@@ -11,7 +11,7 @@ class Estimation extends Model
         'customer_id',
         'org_id',
         'company_id',
-        'product_id',
+        'project_id',
         'description',
         'status'
     ];
