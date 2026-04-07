@@ -13,6 +13,7 @@ class Estimation extends Model
         'company_id',
         'project_id',
         'description',
+        'additional_notes',
         'status'
     ];
 
@@ -33,6 +34,11 @@ class Estimation extends Model
     public function collections()
     {
         return $this->hasMany(\App\Models\EstimationCollection::class);
+    }
+
+    public function otherCharge()
+    {
+        return $this->hasOne(\App\Models\EstimationOtherCharge::class);
     }
 
     /**

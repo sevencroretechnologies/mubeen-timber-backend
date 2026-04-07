@@ -36,6 +36,8 @@ return new class extends Migration
 
             // Description
             $table->text('description')->nullable();
+            $table->text('additional_notes')->nullable();
+
 
             // Status
             $table->enum('status', array_column(EstimationStatus::cases(), 'value'))

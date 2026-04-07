@@ -38,6 +38,7 @@ use App\Http\Controllers\Api\Auth\AccessController;
 use App\Http\Controllers\CompanyController as CompanyMgmtController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\EstimationController;
+use App\Http\Controllers\EstimationOtherChargeController;
 use App\Http\Controllers\EstimationProductController;
 // ============================================
 // Public Auth Routes
@@ -119,8 +120,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('products', ProductController::class);
     Route::apiResource('opportunity-products', OpportunityProductController::class);
     Route::apiResource('estimations', EstimationController::class);
+    Route::apiResource('estimation-other-charges', EstimationOtherChargeController::class);
 
     // Estimation Status & Material Collection
+    Route::get('estimations/{id}/other-charges', [EstimationOtherChargeController::class, 'getByEstimation']);
     Route::post('estimations/{id}/approve', [EstimationController::class, 'approve']);
     Route::post('estimations/{id}/cancel', [EstimationController::class, 'cancel']);
     Route::post('estimations/{id}/mark-complete', [EstimationController::class, 'markAsCollected']);
