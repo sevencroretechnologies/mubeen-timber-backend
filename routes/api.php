@@ -40,6 +40,7 @@ use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\EstimationController;
 use App\Http\Controllers\EstimationOtherChargeController;
 use App\Http\Controllers\EstimationProductController;
+use App\Http\Controllers\EstimationAttachmentController;
 // ============================================
 // Public Auth Routes
 // ============================================
@@ -133,6 +134,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Estimation Products CRUD
     Route::apiResource('estimation-products', EstimationProductController::class);
+    Route::apiResource('estimation-attachments', EstimationAttachmentController::class);
 
 
     // ============================================
