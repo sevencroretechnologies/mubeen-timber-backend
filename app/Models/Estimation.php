@@ -11,7 +11,7 @@ class Estimation extends Model
         'org_id',
         'company_id',
         'customer_id',
-        'product_id',
+        'project_id',
         'description',
         'status'
     ];
@@ -28,6 +28,11 @@ class Estimation extends Model
     public function customer()
     {
         return $this->belongsTo(\App\Models\Customer::class);
+    }
+
+    public function project()
+    {
+        return $this->belongsTo(\App\Models\Project::class);
     }
 
     public function collections()

@@ -14,7 +14,7 @@ class EstimationController extends Controller
      */
     public function index(Request $request)
     {
-        $query = \App\Models\Estimation::with(['product', 'customer']);
+        $query = \App\Models\Estimation::with(['project', 'customer']);
 
         // Filter by org_id if provided
         if ($request->has('org_id')) {
@@ -31,9 +31,9 @@ class EstimationController extends Controller
             $query->where('customer_id', $request->customer_id);
         }
 
-        // Filter by product_id if provided
-        if ($request->has('product_id')) {
-            $query->where('product_id', $request->product_id);
+        // Filter by project_id if provided
+        if ($request->has('project_id')) {
+            $query->where('project_id', $request->project_id);
         }
 
         // Filter by status if provided
@@ -64,7 +64,7 @@ class EstimationController extends Controller
             'org_id' => 'nullable|integer',
             'company_id' => 'nullable|integer',
             'customer_id' => 'required|exists:customers,id',
-            'product_id' => 'required|integer|exists:products,id',
+            'project_id' => 'required|integer|exists:projects,id',
             'description' => 'nullable|string',
             'status' => 'nullable|string|in:draft,pending,approved,rejected',
         ]);
@@ -75,12 +75,12 @@ class EstimationController extends Controller
                 'org_id' => $validated['org_id'] ?? null,
                 'company_id' => $validated['company_id'] ?? null,
                 'customer_id' => $validated['customer_id'],
-                'product_id' => $validated['product_id'],
+                'project_id' => $validated['project_id'],
                 'description' => $validated['description'] ?? null,
                 'status' => $validated['status'] ?? EstimationStatus::Draft->value,
             ]);
 
-            $estimation->load(['product', 'customer']);
+            $estimation->load(['project', 'customer']);
 
             DB::commit();
 
@@ -101,6 +101,7 @@ class EstimationController extends Controller
             'org_id' => 'nullable|integer',
             'company_id' => 'nullable|integer',
             'customer_id' => 'required|exists:customers,id',
+            'project_id' => 'nullable|integer|exists:projects,id',
             'description' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'nullable|integer|exists:products,id',
@@ -116,6 +117,7 @@ class EstimationController extends Controller
                 'org_id' => $validated['org_id'] ?? null,
                 'company_id' => $validated['company_id'] ?? null,
                 'customer_id' => $validated['customer_id'],
+                'project_id' => $validated['project_id'] ?? null,
                 'description' => $validated['description'] ?? null,
                 'status' => 'draft',
             ]);
@@ -130,12 +132,6 @@ class EstimationController extends Controller
                             'description' => null,
                         ]);
                         $productId = $product->id;
-                    }
-
-                    // Store first item's product_id on main estimation for backward compatibility
-                    if (!$estimation->product_id && $productId) {
-                        $estimation->product_id = $productId;
-                        $estimation->save();
                     }
 
                     // Store in estimation_items table if the model exists
@@ -153,7 +149,7 @@ class EstimationController extends Controller
             DB::commit();
 
             return response()->json(
-                $estimation->load(['customer', 'product']),
+                $estimation->load(['customer', 'project']),
                 201
             );
         } catch (\Exception $e) {
@@ -167,7 +163,7 @@ class EstimationController extends Controller
      */
     public function show(string $id)
     {
-        $estimation = \App\Models\Estimation::with(['product', 'customer'])->findOrFail($id);
+        $estimation = \App\Models\Estimation::with(['project', 'customer'])->findOrFail($id);
         return response()->json($estimation);
     }
 
@@ -183,7 +179,7 @@ class EstimationController extends Controller
             'org_id' => 'nullable|integer',
             'company_id' => 'nullable|integer',
             'customer_id' => 'sometimes|exists:customers,id',
-            'product_id' => 'sometimes|exists:products,id',
+            'project_id' => 'sometimes|exists:projects,id',
             'description' => 'nullable|string',
             'status' => 'nullable|string|in:draft,pending,approved,rejected',
             'items' => 'nullable|array',
@@ -230,17 +226,12 @@ class EstimationController extends Controller
                     }
                 }
 
-                // Update main estimation product_id for backward compatibility
-                if ($firstProductId) {
-                    $validated['product_id'] = $firstProductId;
-                }
-
                 // Remove items from validated since it's not a column
                 unset($validated['items']);
             }
 
             $estimation->update($validated);
-            $estimation->load(['product', 'customer']);
+            $estimation->load(['project', 'customer']);
 
             DB::commit();
 
@@ -280,7 +271,7 @@ class EstimationController extends Controller
 
         return response()->json([
             'message' => 'Estimation approved successfully',
-            'data' => $estimation->load(['product', 'customer'])
+            'data' => $estimation->load(['project', 'customer'])
         ]);
     }
 
@@ -295,7 +286,7 @@ class EstimationController extends Controller
 
         return response()->json([
             'message' => 'Estimation cancelled successfully',
-            'data' => $estimation->load(['product', 'customer'])
+            'data' => $estimation->load(['project', 'customer'])
         ]);
     }
 
@@ -316,7 +307,7 @@ class EstimationController extends Controller
 
         return response()->json([
             'message' => 'Estimation marked as collected',
-            'data' => $estimation->load(['product', 'customer'])
+            'data' => $estimation->load(['project', 'customer'])
         ]);
     }
 
