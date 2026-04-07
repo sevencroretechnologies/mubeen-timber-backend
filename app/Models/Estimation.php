@@ -23,9 +23,9 @@ class Estimation extends Model
         'grand_total' => 'decimal:2',
     ];
 
-    public function product()
+    public function project()
     {
-        return $this->belongsTo(\App\Models\Product::class);
+        return $this->belongsTo(\App\Models\Project::class);
     }
 
     public function customer()
@@ -51,6 +51,11 @@ class Estimation extends Model
     public function project()
     {
         return $this->belongsTo(\App\Models\Project::class);
+    }
+
+    public function attachments()
+    {
+        return $this->hasMany(\App\Models\EstimationAttachment::class);
     }
 
     /**

@@ -5,32 +5,37 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class EstimationOtherCharge extends Model
+class EstimationAttachment extends Model
 {
     use SoftDeletes;
+
     protected $fillable = [
-        'estimation_id',
         'org_id',
         'company_id',
-        'labour_charges',
-        'transport_and_handling',
-        'discount',
-        'approximate_tax',
-        'overall_total_cft',
-        'other_description_amount',
-        'other_description',
+        'estimation_id',
+        'image',
+        'description',
     ];
 
+    /**
+     * Get the estimation that owns the attachment.
+     */
     public function estimation()
     {
         return $this->belongsTo(Estimation::class);
     }
 
+    /**
+     * Get the organization that owns the attachment.
+     */
     public function organization()
     {
         return $this->belongsTo(Organization::class, 'org_id');
     }
 
+    /**
+     * Get the company that owns the attachment.
+     */
     public function company()
     {
         return $this->belongsTo(Company::class);

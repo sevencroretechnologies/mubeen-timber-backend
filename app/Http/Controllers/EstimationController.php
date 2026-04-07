@@ -126,7 +126,7 @@ class EstimationController extends Controller
             'customer_id' => 'sometimes|exists:customers,id',
             'project_id' => 'sometimes|exists:projects,id',
             'description' => 'nullable|string',
-            'additional_notes'=> 'nullable|string',
+            'additional_notes' => 'nullable|string',
             'status' => 'nullable|string|in:draft,pending,approved,rejected',
         ]);
 
