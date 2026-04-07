@@ -48,10 +48,7 @@ class Estimation extends Model
         return $this->hasMany(\App\Models\EstimationProduct::class);
     }
 
-    public function project()
-    {
-        return $this->belongsTo(\App\Models\Project::class);
-    }
+  
 
     public function attachments()
     {
