@@ -90,7 +90,70 @@ class EstimationAttachmentController extends Controller
             'data' => $attachment
         ]);
     }
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'estimation_id' => 'sometimes|exists:estimations,id',
+            'org_id' => 'nullable|integer',
+            'company_id' => 'nullable|integer',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'description' => 'sometimes|nullable|string|max:500',
+        ]);
 
+        try {
+            DB::beginTransaction();
+
+            $attachment = EstimationAttachment::findOrFail($id);
+
+            // Update fields
+            if ($request->has('estimation_id')) {
+                $attachment->estimation_id = $request->estimation_id;
+            }
+            if ($request->has('org_id')) {
+                $attachment->org_id = $request->org_id;
+            }
+            if ($request->has('company_id')) {
+                $attachment->company_id = $request->company_id;
+            }
+            if ($request->has('description')) {
+                $attachment->description = $request->description;
+            }
+
+            // Handle image update
+            if ($request->hasFile('image')) {
+                // Delete old image
+                if ($attachment->image && file_exists(public_path($attachment->image))) {
+                    @unlink(public_path($attachment->image));
+                }
+
+                $file = $request->file('image');
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $file->move(public_path('uploads/estimations'), $filename);
+                $attachment->image = 'uploads/estimations/' . $filename;
+            }
+
+            $attachment->save();
+
+            // Add full image URL to response
+            $attachment->image_url = $attachment->image ? asset($attachment->image) : null;
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Attachment updated successfully',
+                'data' => $attachment
+            ]);
+
+        } catch (Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update attachment',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
     /**
      * Remove the specified attachment from storage.
      */
