@@ -60,6 +60,7 @@ return new class extends Migration
             $table->decimal('cost_per_cft', 10, 2)->nullable()->default(0);
             $table->decimal('total_amount', 10, 2)->nullable()->default(0);
 
+            $table->softDeletes();
             $table->timestamps();
         });
     }
