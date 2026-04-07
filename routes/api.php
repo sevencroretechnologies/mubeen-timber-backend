@@ -38,6 +38,7 @@ use App\Http\Controllers\Api\Auth\AccessController;
 use App\Http\Controllers\CompanyController as CompanyMgmtController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\EstimationController;
+use App\Http\Controllers\EstimationProductController;
 // ============================================
 // Public Auth Routes
 // ============================================
@@ -126,6 +127,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('estimations/{id}/collect', [EstimationController::class, 'collectMaterial']);
     Route::get('estimations/{id}/collections', [EstimationController::class, 'getCollections']);
     Route::get('estimations-stock/available', [EstimationController::class, 'getAvailableStock']);
+
+    // Estimation Products CRUD
+    Route::apiResource('estimation-products', EstimationProductController::class);
 
 
     // ============================================
