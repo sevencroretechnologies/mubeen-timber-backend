@@ -14,11 +14,13 @@ class Estimation extends Model
         'project_id',
         'description',
         'additional_notes',
+        'grand_total',
         'status'
     ];
 
     protected $casts = [
         'status' => EstimationStatus::class,
+        'grand_total' => 'decimal:2',
     ];
 
     public function product()
@@ -39,6 +41,16 @@ class Estimation extends Model
     public function otherCharge()
     {
         return $this->hasOne(\App\Models\EstimationOtherCharge::class);
+    }
+
+    public function products()
+    {
+        return $this->hasMany(\App\Models\EstimationProduct::class);
+    }
+
+    public function project()
+    {
+        return $this->belongsTo(\App\Models\Project::class);
     }
 
     /**

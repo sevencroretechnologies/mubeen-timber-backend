@@ -3,12 +3,27 @@
 namespace App\Http\Controllers;
 
 use App\Enums\EstimationStatus;
-use App\Models\EstimationCollection;
+use App\Http\Requests\StoreEstimationRequest;
+use App\Models\Estimation;
+use App\Services\EstimationService;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
 class EstimationController extends Controller
 {
+    /**
+     * Estimation service instance.
+     */
+    protected EstimationService $estimationService;
+
+    /**
+     * Create a new service instance.
+     */
+    public function __construct(EstimationService $estimationService)
+    {
+        $this->estimationService = $estimationService;
+    }
     /**
      * Display a listing of the resource.
      */
@@ -51,39 +66,39 @@ class EstimationController extends Controller
 
     /**
      * Store a newly created resource in storage.
-     * Creates a single estimation with fields from the migration.
+     * Creates a complete estimation with products and other charges in a single transaction.
+     *
+     * @param \App\Http\Requests\StoreEstimationRequest $request
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreEstimationRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'org_id' => 'nullable|integer',
-            'company_id' => 'nullable|integer',
-            'customer_id' => 'required|exists:customers,id',
-            'project_id' => 'required|integer|exists:projects,id',
-            'description' => 'nullable|string',
-            'additional_notes' => 'nullable|string',
-            'status' => 'nullable|string|in:draft,pending,approved,rejected',
-        ]);
-
-        DB::beginTransaction();
         try {
-            $estimation = \App\Models\Estimation::create([
-                'org_id' => $validated['org_id'] ?? null,
-                'company_id' => $validated['company_id'] ?? null,
-                'customer_id' => $validated['customer_id'],
-                'project_id' => $validated['project_id'],
-                'description' => $validated['description'] ?? null,
-                'status' => $validated['status'] ?? EstimationStatus::Draft->value,
-            ]);
+            $result = $this->estimationService->storeCompleteEstimation($request->validated());
 
-            $estimation->load(['project', 'customer']);
-
-            DB::commit();
-
-            return response()->json($estimation, 201);
+            return response()->json([
+                'message' => 'Estimation created successfully',
+                'data' => [
+                    'estimation' => $result['estimation'],
+                    'products' => $result['products'],
+                    'other_charges' => $result['other_charges'],
+                    'total_cft' => $result['total_cft'],
+                    'summary' => [
+                        'total_products' => $result['products']->count(),
+                        'total_amount' => $result['products']->sum('total_amount'),
+                        'grand_total' => $result['products']->sum('total_amount')
+                            + ($result['other_charges']?->transport_and_handling ?? 0)
+                            + ($result['other_charges']?->approximate_tax ?? 0)
+                            - ($result['other_charges']?->discount ?? 0)
+                            + ($result['other_charges']?->labour_charges ?? 0),
+                    ],
+                ]
+            ], 201);
         } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
+            return response()->json([
+                'message' => 'Failed to create estimation: ' . $e->getMessage(),
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while creating the estimation.',
+            ], 500);
         }
     }
 
@@ -93,7 +108,7 @@ class EstimationController extends Controller
      */
     public function show(string $id)
     {
-        $estimation = \App\Models\Estimation::with(['project', 'customer'])->findOrFail($id);
+        $estimation = \App\Models\Estimation::with(['project', 'customer', 'products.product', 'otherCharge'])->findOrFail($id);
         return response()->json($estimation);
     }
 

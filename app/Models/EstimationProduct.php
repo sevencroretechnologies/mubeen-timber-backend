@@ -14,6 +14,7 @@ class EstimationProduct extends Model
      * The attributes that are mass assignable.
      */
     protected $fillable = [
+        'estimation_id',
         'org_id',
         'company_id',
         'product_id',
@@ -46,17 +47,17 @@ class EstimationProduct extends Model
 
     /**
      * CFT Calculation Type constants for reference.
-     * 1 = length * breadth * height / 1728
-     * 2 = length * breadth * thickness / 144
-     * 3 = length * breadth * height (direct cubic)
-     * 4 = custom (user provides CFT manually but auto-calculates total)
-     * 5 = manual (user provides everything manually)
+     * 1 = (length * breadth * height) / 144 (dimensions in inches)
+     * 2 = length * breadth * height (dimensions in feet)
+     * 3 = (length * breadth * thickness) / 12 (thickness in inches)
+     * 4 = length * breadth * thickness (thickness in feet)
+     * 5 = manual (user provides CFT manually)
      */
-    const CFT_TYPE_LBH_1728   = '1';
-    const CFT_TYPE_LBT_144    = '2';
-    const CFT_TYPE_LBH_DIRECT = '3';
-    const CFT_TYPE_CUSTOM     = '4';
-    const CFT_TYPE_MANUAL     = '5';
+    const CFT_TYPE_LBH_INCHES_144 = '1';
+    const CFT_TYPE_LBH_FEET       = '2';
+    const CFT_TYPE_LBT_INCHES_12  = '3';
+    const CFT_TYPE_LBT_FEET       = '4';
+    const CFT_TYPE_MANUAL         = '5';
 
     /**
      * Calculate CFT based on the selected calculation type.
@@ -68,14 +69,29 @@ class EstimationProduct extends Model
         $h = (float) ($this->height ?? 0);
         $t = (float) ($this->thickness ?? 0);
 
-        return match ($this->cft_calculation_type) {
-            self::CFT_TYPE_LBH_1728   => ($l * $b * $h) / 1728,
-            self::CFT_TYPE_LBT_144    => ($l * $b * $t) / 144,
-            self::CFT_TYPE_LBH_DIRECT => $l * $b * $h,
-            self::CFT_TYPE_CUSTOM     => (float) ($this->cft ?? 0), // User-provided CFT
-            self::CFT_TYPE_MANUAL     => (float) ($this->cft ?? 0), // User-provided CFT
-            default                   => ($l * $b * $h) / 1728,
-        };
+        $cftPerUnit = 0;
+
+        if ($this->cft_calculation_type === '1') {
+            // Type 1: in inches -> (l*b*h)/144
+            $cftPerUnit = ($l * $b * $h) / 144;
+        } elseif ($this->cft_calculation_type === '2') {
+            // Type 2: in feet -> l*b*h
+            $cftPerUnit = $l * $b * $h;
+        } elseif ($this->cft_calculation_type === '3') {
+            // Type 3: thickness in inches -> (l*b*t)/12
+            $cftPerUnit = ($l * $b * $t) / 12;
+        } elseif ($this->cft_calculation_type === '4') {
+            // Type 4: thickness in feet -> l*b*t
+            $cftPerUnit = $l * $b * $t;
+        } elseif ($this->cft_calculation_type === '5') {
+            // Type 5: Manual - use the cft value directly
+            $cftPerUnit = (float) ($this->cft ?? 0);
+        } else {
+            // Fallback
+            $cftPerUnit = ($l * $b * $h) / 144;
+        }
+
+        return round($cftPerUnit, 2);
     }
 
     /**
@@ -91,6 +107,14 @@ class EstimationProduct extends Model
     }
 
     // ─── Relationships ───────────────────────────────────────────────
+
+    /**
+     * Get the estimation that owns this product.
+     */
+    public function estimation(): BelongsTo
+    {
+        return $this->belongsTo(Estimation::class, 'estimation_id');
+    }
 
     /**
      * Get the organization that owns this estimation product.

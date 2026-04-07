@@ -25,6 +25,12 @@ return new class extends Migration
                   ->constrained('companies')
                   ->cascadeOnDelete();
 
+            // Estimation reference
+            $table->foreignId('estimation_id')
+                  ->nullable()
+                  ->constrained('estimations')
+                  ->nullOnDelete();
+
             // Product reference
             $table->foreignId('product_id')
                   ->constrained('products')

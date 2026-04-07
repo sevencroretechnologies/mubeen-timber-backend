@@ -105,8 +105,8 @@ class EstimationProductController extends Controller
         try {
             $estimationProduct = new EstimationProduct($validated);
 
-            // Auto-calculate CFT unless manual/custom type with user-provided value
-            if (!in_array($validated['cft_calculation_type'], ['4', '5']) || empty($validated['cft'])) {
+            // Auto-calculate CFT for types 1-4, only type 5 uses manual CFT
+            if ($validated['cft_calculation_type'] !== '5') {
                 $estimationProduct->cft = round($estimationProduct->calculateCft(), 2);
             }
 
@@ -170,8 +170,8 @@ class EstimationProductController extends Controller
             // Determine the calculation type (use updated or existing)
             $calcType = $estimationProduct->cft_calculation_type;
 
-            // Auto-calculate CFT unless manual/custom type with user-provided value
-            if (!in_array($calcType, ['4', '5'])) {
+            // Auto-calculate CFT for types 1-4, only type 5 uses manual CFT
+            if ($calcType !== '5') {
                 $estimationProduct->cft = round($estimationProduct->calculateCft(), 2);
             }
 
