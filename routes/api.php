@@ -2,7 +2,8 @@
 
 use App\Http\Controllers\Api\crm\AppointmentController;
 use App\Http\Controllers\Api\crm\CampaignController;
-use App\Http\Controllers\Api\crm\DashboardController;
+use App\Http\Controllers\Api\crm\DashboardController as CrmDashboardController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\crm\EnumController;
 use App\Http\Controllers\Api\crm\LeadController;
 use App\Http\Controllers\Api\crm\OpportunityController;
@@ -65,12 +66,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('users', [UsersController::class, 'index']);
 
     // ============================================
-    // CRM Dashboard
+    // CRM Dashboard (Legacy)
     // ============================================
-    Route::get('dashboard/stats', [DashboardController::class, 'stats']);
-    Route::get('dashboard/sales-overview', [DashboardController::class, 'salesOverview']);
-    Route::get('dashboard/lead-conversion-funnel', [DashboardController::class, 'leadConversionFunnel']);
-    Route::get('dashboard/opportunity-pipeline', [DashboardController::class, 'opportunityPipeline']);
+    Route::get('dashboard/crm/stats', [CrmDashboardController::class, 'stats']);
+    Route::get('dashboard/crm/sales-overview', [CrmDashboardController::class, 'salesOverview']);
+    Route::get('dashboard/crm/lead-conversion-funnel', [CrmDashboardController::class, 'leadConversionFunnel']);
+    Route::get('dashboard/crm/opportunity-pipeline', [CrmDashboardController::class, 'opportunityPipeline']);
+
+    // ============================================
+    // Timber Dashboard - SINGLE UNIFIED API
+    // ============================================
+    Route::get('dashboard/timber', [DashboardController::class, 'timber']);
 
     // ============================================
     // CRM - Leads
