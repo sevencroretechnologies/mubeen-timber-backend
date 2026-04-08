@@ -74,6 +74,12 @@ class EstimationController extends Controller
     public function store(StoreEstimationRequest $request): JsonResponse
     {
         try {
+            \Log::info('Estimation creation request received', [
+                'data' => $request->validated(),
+                'has_attachments' => isset($request->validated()['attachments']),
+                'attachments_count' => isset($request->validated()['attachments']) ? count($request->validated()['attachments']) : 0,
+            ]);
+
             $result = $this->estimationService->storeCompleteEstimation($request->validated());
 
             return response()->json([
@@ -86,15 +92,25 @@ class EstimationController extends Controller
                     'summary' => [
                         'total_products' => $result['products']->count(),
                         'total_amount' => $result['products']->sum('total_amount'),
-                        'grand_total' => $result['products']->sum('total_amount')
-                            + ($result['other_charges']?->transport_and_handling ?? 0)
-                            + ($result['other_charges']?->approximate_tax ?? 0)
-                            - ($result['other_charges']?->discount ?? 0)
-                            + ($result['other_charges']?->labour_charges ?? 0),
+                        'grand_total' => $result['grand_total'] ?? 0,
                     ],
                 ]
             ], 201);
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Log::error('Database error in estimation creation', [
+                'message' => $e->getMessage(),
+                'sql' => $e->getSql(),
+                'bindings' => $e->getBindings(),
+            ]);
+            return response()->json([
+                'message' => 'Database error: ' . $e->getMessage(),
+                'error' => config('app.debug') ? $e->getMessage() : 'A database error occurred.',
+            ], 500);
         } catch (\Exception $e) {
+            \Log::error('Error in estimation creation', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return response()->json([
                 'message' => 'Failed to create estimation: ' . $e->getMessage(),
                 'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while creating the estimation.',

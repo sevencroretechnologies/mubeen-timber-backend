@@ -16,14 +16,16 @@ return new class extends Migration
         Schema::create('estimation_products', function (Blueprint $table) {
             $table->id();
 
-            // Organization & Company
+            // Organization & Company (nullable)
             $table->foreignId('org_id')
+                  ->nullable()
                   ->constrained('organizations')
-                  ->cascadeOnDelete();
+                  ->nullOnDelete();
 
             $table->foreignId('company_id')
+                  ->nullable()
                   ->constrained('companies')
-                  ->cascadeOnDelete();
+                  ->nullOnDelete();
 
             // Estimation reference
             $table->foreignId('estimation_id')
@@ -31,10 +33,11 @@ return new class extends Migration
                   ->constrained('estimations')
                   ->nullOnDelete();
 
-            // Product reference
+            // Product reference (nullable for inline products)
             $table->foreignId('product_id')
+                  ->nullable()
                   ->constrained('products')
-                  ->cascadeOnDelete();
+                  ->nullOnDelete();
 
             // Customer reference
             $table->foreignId('customer_id')
