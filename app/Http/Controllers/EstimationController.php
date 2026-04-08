@@ -120,9 +120,9 @@ class EstimationController extends Controller
 
 
     /**
-     * Display the specified resource.
+     * Display the specified resource with full details and summary.
      */
-    public function show(string $id)
+    public function show(string $id): JsonResponse
     {
         $estimation = \App\Models\Estimation::with([
             'project',
@@ -132,7 +132,49 @@ class EstimationController extends Controller
             'attachments'
         ])->findOrFail($id);
 
-        return response()->json($estimation);
+        // Calculate summary
+        $productsTotal = $estimation->products->sum('total_amount') ?? 0;
+        $totalCft = $estimation->products->sum(function ($p) {
+            return ($p->cft ?? 0) * ($p->quantity ?? 1);
+        });
+
+        $chargesTotal = 0;
+        if ($estimation->otherCharge) {
+            $chargesTotal += ($estimation->otherCharge->labour_charges ?? 0);
+            $chargesTotal += ($estimation->otherCharge->transport_and_handling ?? 0);
+            $chargesTotal += ($estimation->otherCharge->approximate_tax ?? 0);
+            $chargesTotal -= ($estimation->otherCharge->discount ?? 0);
+        }
+
+        return response()->json([
+            'data' => $estimation,
+            'summary' => [
+                'total_products' => $estimation->products->count(),
+                'total_cft' => round($totalCft, 2),
+                'products_total' => round($productsTotal, 2),
+                'charges_total' => round($chargesTotal, 2),
+                'grand_total' => round($estimation->grand_total ?? 0, 2),
+                'status' => $estimation->status?->value ?? $estimation->status,
+                'status_label' => $estimation->status?->label() ?? 'N/A',
+            ],
+            'other_charges' => $estimation->otherCharge ? [
+                'labour_charges' => $estimation->otherCharge->labour_charges ?? 0,
+                'transport_and_handling' => $estimation->otherCharge->transport_and_handling ?? 0,
+                'discount' => $estimation->otherCharge->discount ?? 0,
+                'approximate_tax' => $estimation->otherCharge->approximate_tax ?? 0,
+                'overall_total_cft' => $estimation->otherCharge->overall_total_cft ?? 0,
+                'other_description' => $estimation->otherCharge->other_description,
+                'other_description_amount' => $estimation->otherCharge->other_description_amount ?? 0,
+            ] : null,
+            'attachments' => $estimation->attachments->map(function ($attachment) {
+                return [
+                    'id' => $attachment->id,
+                    'image_url' => asset($attachment->image),
+                    'description' => $attachment->description,
+                    'created_at' => $attachment->created_at,
+                ];
+            }),
+        ]);
     }
 
     /**
