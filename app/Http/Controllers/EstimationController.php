@@ -9,6 +9,7 @@ use App\Services\EstimationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class EstimationController extends Controller
 {
@@ -80,7 +81,25 @@ class EstimationController extends Controller
                 'attachments_count' => isset($request->validated()['attachments']) ? count($request->validated()['attachments']) : 0,
             ]);
 
-            $result = $this->estimationService->storeCompleteEstimation($request->validated());
+            $dataForService = $request->validated();
+            unset($dataForService['attachments']);
+            $result = $this->estimationService->storeCompleteEstimation($dataForService);
+            $estimation = $result['estimation'];
+
+            if ($request->hasFile('attachments')) {
+                foreach ($request->file('attachments') as $file) {
+                    $path = $file->store('estimations', 'public');
+                    DB::table('estimation_attachments')->insert([
+                        'estimation_id' => $estimation->id,
+                        'org_id' => $estimation->org_id,
+                        'company_id' => $estimation->company_id,
+                        'image' => $path,
+                        'description' => $file->getClientOriginalName(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
 
             return response()->json([
                 'message' => 'Estimation created successfully',
@@ -94,6 +113,17 @@ class EstimationController extends Controller
                         'total_amount' => $result['products']->sum('total_amount'),
                         'grand_total' => $result['grand_total'] ?? 0,
                     ],
+                    'attachments' => DB::table('estimation_attachments')
+                        ->where('estimation_id', $estimation->id)
+                        ->whereNull('deleted_at')
+                        ->get()
+                        ->map(function ($file) {
+                            return [
+                                'id' => $file->id,
+                                'url' => asset('storage/' . $file->image),
+                                'name' => $file->description,
+                            ];
+                        }),
                 ]
             ], 201);
         } catch (\Illuminate\Database\QueryException $e) {
@@ -133,7 +163,9 @@ class EstimationController extends Controller
         ])->findOrFail($id);
 
         // Calculate summary
-        $productsTotal = $estimation->products->sum('total_amount') ?? 0;
+        $productsTotal = $estimation->products->sum(function ($p) {
+            return $p->total_amount ?? 0;
+        });
         $totalCft = $estimation->products->sum(function ($p) {
             return ($p->cft ?? 0) * ($p->quantity ?? 1);
         });
@@ -145,6 +177,19 @@ class EstimationController extends Controller
             $chargesTotal += ($estimation->otherCharge->approximate_tax ?? 0);
             $chargesTotal -= ($estimation->otherCharge->discount ?? 0);
         }
+
+            // Attachments from DB
+            $attachments = DB::table('estimation_attachments')
+                ->where('estimation_id', $estimation->id)
+                ->whereNull('deleted_at')
+                ->get()
+                ->map(function ($file) {
+                    return [
+                        'id' => $file->id,
+                        'url' => asset('storage/' . $file->image),
+                        'name' => $file->description,
+                    ];
+                });
 
         return response()->json([
             'data' => $estimation,
@@ -166,14 +211,7 @@ class EstimationController extends Controller
                 'other_description' => $estimation->otherCharge->other_description,
                 'other_description_amount' => $estimation->otherCharge->other_description_amount ?? 0,
             ] : null,
-            'attachments' => $estimation->attachments->map(function ($attachment) {
-                return [
-                    'id' => $attachment->id,
-                    'image_url' => asset($attachment->image),
-                    'description' => $attachment->description,
-                    'created_at' => $attachment->created_at,
-                ];
-            }),
+            'attachments' => $attachments,
         ]);
     }
 
@@ -197,6 +235,9 @@ class EstimationController extends Controller
 
                 // Products array (for complete update)
                 'products' => 'nullable|array',
+                'products.*.id' => 'nullable|integer|exists:estimation_products,id',
+                'deleted_product_ids' => 'nullable|array',
+                'deleted_product_ids.*' => 'integer|exists:estimation_products,id',
                 'products.*.product_id' => 'nullable|integer|exists:products,id',
                 'products.*.length' => 'nullable|numeric',
                 'products.*.breadth' => 'nullable|numeric',
@@ -217,10 +258,50 @@ class EstimationController extends Controller
 
                 // Attachments
                 'attachments' => 'nullable|array',
-                'attachments.*' => 'nullable|string',
+                'attachments.*' => 'image|mimes:jpeg,png,jpg|max:2048',
+                'deleted_attachment_ids' => 'nullable|array',
+                'deleted_attachment_ids.*' => 'integer|exists:estimation_attachments,id',
             ]);
 
-            $result = $this->estimationService->updateCompleteEstimation((int) $id, $validated);
+            $dataForService = $validated;
+            unset($dataForService['attachments']);
+            unset($dataForService['deleted_attachment_ids']);
+
+            $result = $this->estimationService->updateCompleteEstimation((int) $id, $dataForService);
+            $estimation = $result['estimation'];
+
+            // Handle deleted attachments
+            if (!empty($request->deleted_attachment_ids)) {
+                $attachmentsToDelete = DB::table('estimation_attachments')
+                    ->whereIn('id', $request->deleted_attachment_ids)
+                    ->get();
+                
+                foreach ($attachmentsToDelete as $file) {
+                    if ($file->image) {
+                        Storage::disk('public')->delete($file->image);
+                    }
+                }
+
+                DB::table('estimation_attachments')
+                    ->whereIn('id', $request->deleted_attachment_ids)
+                    ->delete();
+            }
+
+            // Handle new attachments
+            if ($request->hasFile('attachments')) {
+                foreach ($request->file('attachments') as $file) {
+                    $path = $file->store('estimations', 'public');
+                    DB::table('estimation_attachments')->insert([
+                        'estimation_id' => $estimation->id,
+                        'org_id' => $estimation->org_id,
+                        'company_id' => $estimation->company_id,
+                        'image' => $path,
+                        'description' => $file->getClientOriginalName(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
 
             return response()->json([
                 'message' => 'Estimation updated successfully',
@@ -233,6 +314,17 @@ class EstimationController extends Controller
                         'total_amount' => $result['products']->sum('total_amount'),
                         'grand_total' => $result['grand_total'] ?? 0,
                     ],
+                    'attachments' => DB::table('estimation_attachments')
+                        ->where('estimation_id', $estimation->id)
+                        ->whereNull('deleted_at')
+                        ->get()
+                        ->map(function ($file) {
+                            return [
+                                'id' => $file->id,
+                                'url' => asset('storage/' . $file->image),
+                                'name' => $file->description,
+                            ];
+                        }),
                 ]
             ]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
