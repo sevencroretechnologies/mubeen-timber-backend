@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Models\Estimation;
 use App\Models\EstimationProduct;
 use App\Models\EstimationOtherCharge;
+use App\Models\EstimationAttachment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class EstimationService
 {
@@ -36,8 +38,14 @@ class EstimationService
             $grandTotal = $this->calculateGrandTotal($products, $otherCharges);
             $estimation->update(['grand_total' => $grandTotal]);
 
-            // Step 6: Load relationships
-            $estimation->load(['project', 'customer', 'products.product', 'otherCharge']);
+            // Step 6: Create Attachments if provided
+            $attachments = null;
+            if (isset($data['attachments']) && is_array($data['attachments'])) {
+                $attachments = $this->createAttachments($estimation->id, $data);
+            }
+
+            // Step 7: Load relationships
+            $estimation->load(['project', 'customer', 'products.product', 'otherCharge', 'attachments']);
 
             Log::info('Estimation created successfully', [
                 'estimation_id' => $estimation->id,
@@ -51,6 +59,7 @@ class EstimationService
                 'other_charges' => $otherCharges,
                 'total_cft' => $totalCft,
                 'grand_total' => $grandTotal,
+                'attachments' => $attachments,
             ];
         });
     }
@@ -66,7 +75,7 @@ class EstimationService
     public function updateCompleteEstimation(int $estimationId, array $data): array
     {
         return DB::transaction(function () use ($estimationId, $data) {
-            $estimation = Estimation::with(['products', 'otherCharge'])->findOrFail($estimationId);
+            $estimation = Estimation::with(['products', 'otherCharge', 'attachments'])->findOrFail($estimationId);
 
             // Update basic info
             $estimation->update([
@@ -84,10 +93,10 @@ class EstimationService
             }
 
             // Update or create other charges
-            if (isset($data['transport_handling']) ||
+            if (isset($data['labour_charges']) ||
+                isset($data['transport_handling']) ||
                 isset($data['discount']) ||
                 isset($data['tax']) ||
-                isset($data['labour_charges']) ||
                 isset($data['total_cft'])) {
 
                 $totalCft = $this->calculateTotalCft($products ?? $estimation->products);
@@ -96,17 +105,27 @@ class EstimationService
                 $otherCharges = $estimation->otherCharge;
             }
 
+            // Update attachments if provided
+            $attachments = $estimation->attachments;
+            if (isset($data['attachments']) && is_array($data['attachments'])) {
+                // Delete existing attachments
+                $estimation->attachments()->delete();
+                // Create new attachments
+                $attachments = $this->createAttachments($estimation->id, $data);
+            }
+
             // Calculate and save grand total
             $grandTotal = $this->calculateGrandTotal($products ?? $estimation->products, $otherCharges);
             $estimation->update(['grand_total' => $grandTotal]);
 
-            $estimation->load(['project', 'customer', 'products.product', 'otherCharge']);
+            $estimation->load(['project', 'customer', 'products.product', 'otherCharge', 'attachments']);
 
             return [
                 'estimation' => $estimation,
                 'products' => $products ?? $estimation->products,
                 'other_charges' => $otherCharges,
                 'grand_total' => $grandTotal,
+                'attachments' => $attachments,
             ];
         });
     }
@@ -216,6 +235,93 @@ class EstimationService
                 'other_description' => $data['other_description'] ?? null,
             ]
         );
+    }
+
+    /**
+     * Create attachments for the estimation.
+     * Expects attachments data with file_path or base64 data.
+     */
+    private function createAttachments(int $estimationId, array $data): \Illuminate\Support\Collection
+    {
+        $attachmentsCollection = collect();
+
+        if (!isset($data['attachments']) || !is_array($data['attachments'])) {
+            return $attachmentsCollection;
+        }
+
+        foreach ($data['attachments'] as $attachmentData) {
+            if (empty($attachmentData)) {
+                continue;
+            }
+
+            // If attachment is a string (file path or base64), handle it
+            $imagePath = null;
+            $description = null;
+
+            if (is_string($attachmentData)) {
+                // Check if it's base64 data
+                if (preg_match('/^data:image\/(\w+);base64,/i', $attachmentData, $matches)) {
+                    $imagePath = $this->saveBase64Image($attachmentData, $estimationId);
+                } else {
+                    // Assume it's already a file path
+                    $imagePath = $attachmentData;
+                }
+            } elseif (is_array($attachmentData)) {
+                $imagePath = $attachmentData['file_path'] ?? null;
+                $description = $attachmentData['description'] ?? null;
+
+                // Handle base64 if present
+                if (isset($attachmentData['base64']) && preg_match('/^data:image\/(\w+);base64,/i', $attachmentData['base64'])) {
+                    $imagePath = $this->saveBase64Image($attachmentData['base64'], $estimationId);
+                }
+            }
+
+            if ($imagePath) {
+                $attachment = EstimationAttachment::create([
+                    'estimation_id' => $estimationId,
+                    'org_id' => $data['org_id'] ?? null,
+                    'company_id' => $data['company_id'] ?? null,
+                    'image' => $imagePath,
+                    'description' => $description,
+                ]);
+                $attachmentsCollection->push($attachment);
+            }
+        }
+
+        return $attachmentsCollection;
+    }
+
+    /**
+     * Save base64 image to file system.
+     */
+    private function saveBase64Image(string $base64Data, int $estimationId): string
+    {
+        // Extract the mime type and base64 content
+        preg_match('/^data:image\/(\w+);base64,/i', $base64Data, $matches);
+        $extension = $matches[1] ?? 'png';
+
+        // Remove the data URI scheme
+        $base64Content = preg_replace('/^data:image\/\w+;base64,/i', '', $base64Data);
+        $imageData = base64_decode($base64Content);
+
+        if ($imageData === false) {
+            throw new \Exception('Invalid base64 image data');
+        }
+
+        // Create directory if it doesn't exist
+        $directory = public_path("uploads/estimations/{$estimationId}");
+        if (!file_exists($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        // Generate unique filename
+        $filename = time() . '_' . uniqid() . ".{$extension}";
+        $filepath = "uploads/estimations/{$estimationId}/{$filename}";
+
+        // Save the file
+        file_put_contents(public_path($filepath), $imageData);
+
+        return $filepath;
     }
 
     /**
