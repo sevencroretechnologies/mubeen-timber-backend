@@ -17,6 +17,16 @@ class EstimationAttachment extends Model
         'description',
     ];
 
+    protected $appends = ['image_url'];
+
+    /**
+     * Get the full URL for the image.
+     */
+    public function getImageUrlAttribute()
+    {
+        return $this->image ? asset($this->image) : null;
+    }
+
     /**
      * Get the estimation that owns the attachment.
      */

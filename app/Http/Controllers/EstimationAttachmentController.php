@@ -54,9 +54,9 @@ class EstimationAttachmentController extends Controller
                 $file = $request->file('image');
                 $filename = time() . '_' . $file->getClientOriginalName();
                 
-                // Store in public/uploads/estimations
-                $path = $file->move(public_path('uploads/estimations'), $filename);
-                $attachment->image = 'uploads/estimations/' . $filename;
+                // Store in public/storage/image
+                $path = $file->move(public_path('storage/image'), $filename);
+                $attachment->image = 'storage/image/' . $filename;
             }
 
             $attachment->save();
@@ -128,14 +128,11 @@ class EstimationAttachmentController extends Controller
 
                 $file = $request->file('image');
                 $filename = time() . '_' . $file->getClientOriginalName();
-                $file->move(public_path('uploads/estimations'), $filename);
-                $attachment->image = 'uploads/estimations/' . $filename;
+                $file->move(public_path('storage/image'), $filename);
+                $attachment->image = 'storage/image/' . $filename;
             }
 
             $attachment->save();
-
-            // Add full image URL to response
-            $attachment->image_url = $attachment->image ? asset($attachment->image) : null;
 
             DB::commit();
 
