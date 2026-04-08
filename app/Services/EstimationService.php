@@ -87,7 +87,7 @@ class EstimationService
             // Delete existing products and recreate
             if (isset($data['products'])) {
                 $estimation->products()->delete();
-                $products = $this->createProducts($estimation->id, $data);
+                $products = $this->createProducts($estimation->id, $data, $estimation);
             } else {
                 $products = $estimation->products;
             }
@@ -151,18 +151,18 @@ class EstimationService
      *
      * @return \Illuminate\Support\Collection
      */
-    private function createProducts(int $estimationId, array $data): \Illuminate\Support\Collection
+    private function createProducts(int $estimationId, array $data, ?Estimation $estimation = null): \Illuminate\Support\Collection
     {
         $productsCollection = collect();
 
         foreach ($data['products'] as $productData) {
             $product = EstimationProduct::create([
                 'estimation_id' => $estimationId,
-                'org_id' => $data['org_id'] ?? null,
-                'company_id' => $data['company_id'] ?? null,
+                'org_id' => $data['org_id'] ?? $estimation?->org_id ?? null,
+                'company_id' => $data['company_id'] ?? $estimation?->company_id ?? null,
                 'product_id' => $productData['product_id'] ?? null,
-                'customer_id' => $data['customer_id'],
-                'project_id' => $data['project_id'],
+                'customer_id' => $data['customer_id'] ?? $estimation?->customer_id,
+                'project_id' => $data['project_id'] ?? $estimation?->project_id,
                 'length' => $productData['length'] ?? 0,
                 'breadth' => $productData['breadth'] ?? 0,
                 'height' => $productData['height'] ?? 0,
