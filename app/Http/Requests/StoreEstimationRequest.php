@@ -54,9 +54,10 @@ class StoreEstimationRequest extends FormRequest
             'labour_charges' => 'nullable|numeric|min:0',
             'total_cft' => 'nullable|numeric|min:0',
 
-            // Attachments (array of images)
+            // Attachments
             'attachments' => 'nullable|array',
-            'attachments.*' => 'image|mimes:jpeg,png,jpg|max:2048',
+            'attachments.*' => 'nullable',
+            'deleted_attachment_ids' => 'nullable|array',
         ];
     }
 

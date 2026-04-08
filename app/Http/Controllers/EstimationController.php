@@ -258,7 +258,7 @@ class EstimationController extends Controller
 
                 // Attachments
                 'attachments' => 'nullable|array',
-                'attachments.*' => 'image|mimes:jpeg,png,jpg|max:2048',
+                'attachments.*' => 'nullable',
                 'deleted_attachment_ids' => 'nullable|array',
                 'deleted_attachment_ids.*' => 'integer|exists:estimation_attachments,id',
             ]);
