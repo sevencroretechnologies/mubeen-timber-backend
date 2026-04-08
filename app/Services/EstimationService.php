@@ -75,7 +75,7 @@ class EstimationService
     public function updateCompleteEstimation(int $estimationId, array $data): array
     {
         return DB::transaction(function () use ($estimationId, $data) {
-            $estimation = Estimation::with(['products', 'otherCharge'])->findOrFail($estimationId);
+            $estimation = Estimation::with(['products', 'otherCharge', 'attachments'])->findOrFail($estimationId);
 
             // Update basic info
             $estimation->update([
@@ -93,10 +93,10 @@ class EstimationService
             }
 
             // Update or create other charges
-            if (isset($data['transport_handling']) ||
+            if (isset($data['labour_charges']) ||
+                isset($data['transport_handling']) ||
                 isset($data['discount']) ||
                 isset($data['tax']) ||
-                isset($data['labour_charges']) ||
                 isset($data['total_cft'])) {
 
                 $totalCft = $this->calculateTotalCft($products ?? $estimation->products);
@@ -105,17 +105,27 @@ class EstimationService
                 $otherCharges = $estimation->otherCharge;
             }
 
+            // Update attachments if provided
+            $attachments = $estimation->attachments;
+            if (isset($data['attachments']) && is_array($data['attachments'])) {
+                // Delete existing attachments
+                $estimation->attachments()->delete();
+                // Create new attachments
+                $attachments = $this->createAttachments($estimation->id, $data);
+            }
+
             // Calculate and save grand total
             $grandTotal = $this->calculateGrandTotal($products ?? $estimation->products, $otherCharges);
             $estimation->update(['grand_total' => $grandTotal]);
 
-            $estimation->load(['project', 'customer', 'products.product', 'otherCharge']);
+            $estimation->load(['project', 'customer', 'products.product', 'otherCharge', 'attachments']);
 
             return [
                 'estimation' => $estimation,
                 'products' => $products ?? $estimation->products,
                 'other_charges' => $otherCharges,
                 'grand_total' => $grandTotal,
+                'attachments' => $attachments,
             ];
         });
     }

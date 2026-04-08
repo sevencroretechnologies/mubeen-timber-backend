@@ -124,39 +124,95 @@ class EstimationController extends Controller
      */
     public function show(string $id)
     {
-        $estimation = \App\Models\Estimation::with(['project', 'customer', 'products.product', 'otherCharge'])->findOrFail($id);
+        $estimation = \App\Models\Estimation::with([
+            'project',
+            'customer',
+            'products.product',
+            'otherCharge',
+            'attachments'
+        ])->findOrFail($id);
+
         return response()->json($estimation);
     }
 
     /**
      * Update the specified resource in storage.
-     * Updates only fields defined in the migration.
+     * Updates complete estimation with products and charges in a single transaction.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, string $id): JsonResponse
     {
-        $estimation = \App\Models\Estimation::findOrFail($id);
-
-        $validated = $request->validate([
-            'org_id' => 'nullable|integer',
-            'company_id' => 'nullable|integer',
-            'customer_id' => 'sometimes|exists:customers,id',
-            'project_id' => 'sometimes|exists:projects,id',
-            'description' => 'nullable|string',
-            'additional_notes' => 'nullable|string',
-            'status' => 'nullable|string|in:draft,pending,approved,rejected',
-        ]);
-
-        DB::beginTransaction();
         try {
-            $estimation->update($validated);
-            $estimation->load(['project', 'customer']);
+            \Log::info('Estimation update request received', [
+                'estimation_id' => $id,
+                'data' => $request->all(),
+            ]);
 
-            DB::commit();
+            $validated = $request->validate([
+                // Basic info
+                'description' => 'nullable|string',
+                'additional_notes' => 'nullable|string',
+                'status' => 'nullable|string|in:draft,approved,partially_collected,collected,cancelled',
 
-            return response()->json($estimation);
+                // Products array (for complete update)
+                'products' => 'nullable|array',
+                'products.*.product_id' => 'nullable|integer|exists:products,id',
+                'products.*.length' => 'nullable|numeric',
+                'products.*.breadth' => 'nullable|numeric',
+                'products.*.height' => 'nullable|numeric',
+                'products.*.thickness' => 'nullable|numeric',
+                'products.*.cft_calculation_type' => 'nullable|string|in:1,2,3,4,5',
+                'products.*.quantity' => 'nullable|integer|min:1',
+                'products.*.cft' => 'nullable|numeric',
+                'products.*.rate' => 'nullable|numeric',
+                'products.*.total_amount' => 'nullable|numeric',
+
+                // Other charges
+                'labour_charges' => 'nullable|numeric|min:0',
+                'transport_handling' => 'nullable|numeric|min:0',
+                'discount' => 'nullable|numeric|min:0',
+                'tax' => 'nullable|numeric|min:0',
+                'total_cft' => 'nullable|numeric|min:0',
+
+                // Attachments
+                'attachments' => 'nullable|array',
+                'attachments.*' => 'nullable|string',
+            ]);
+
+            $result = $this->estimationService->updateCompleteEstimation((int) $id, $validated);
+
+            return response()->json([
+                'message' => 'Estimation updated successfully',
+                'data' => [
+                    'estimation' => $result['estimation'],
+                    'products' => $result['products'],
+                    'other_charges' => $result['other_charges'],
+                    'summary' => [
+                        'total_products' => $result['products']->count(),
+                        'total_amount' => $result['products']->sum('total_amount'),
+                        'grand_total' => $result['grand_total'] ?? 0,
+                    ],
+                ]
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Estimation not found',
+                'error' => 'The requested estimation does not exist.',
+            ], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
         } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['error' => $e->getMessage()], 500);
+            \Log::error('Error in estimation update', [
+                'estimation_id' => $id,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'message' => 'Failed to update estimation: ' . $e->getMessage(),
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while updating the estimation.',
+            ], 500);
         }
     }
 
