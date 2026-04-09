@@ -32,7 +32,12 @@ class EstimationController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Estimation::with(['project', 'customer']);
+        $relations = ['project', 'customer'];
+        if ($request->has('project_id') || $request->boolean('with_details')) {
+            $relations = array_merge($relations, ['products.product', 'products.items', 'otherCharge']);
+        }
+
+        $query = Estimation::with($relations);
 
         if ($request->has('org_id')) {
             $query->where('org_id', $request->org_id);
