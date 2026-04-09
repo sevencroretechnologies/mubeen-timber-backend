@@ -6,9 +6,10 @@ enum EstimationStatus: string
 {
     case Draft = 'draft';
     case Approved = 'approved';
-    case PartiallyCollected = 'partially_collected';
+    case Pending = 'pending';
     case Collected = 'collected';
     case Cancelled = 'cancelled';
+
 
     public static function options(): array
     {

@@ -31,7 +31,7 @@ class StoreEstimationRequest extends FormRequest
             'project_id' => 'required|integer|exists:projects,id',
             'description' => 'nullable|string|max:1000',
             'additional_notes' => 'nullable|string|max:2000',
-            'status' => 'nullable|string|in:draft,pending,approved,rejected,cancelled,partially_collected,collected',
+            'status' => 'nullable|string|in:draft,pending,approved,rejected,cancelled,pending,collected',
 
             // Products Array
             'products' => 'required|array|min:1',
