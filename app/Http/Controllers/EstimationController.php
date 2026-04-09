@@ -32,9 +32,9 @@ class EstimationController extends Controller
      */
     public function index(Request $request)
     {
-        $relations = ['project', 'customer'];
+        $relations = ['project', 'customer', 'products.product'];
         if ($request->has('project_id') || $request->boolean('with_details')) {
-            $relations = array_merge($relations, ['products.product', 'products.items', 'otherCharge']);
+            $relations = array_merge($relations, ['products.items', 'otherCharge']);
         }
 
         $query = Estimation::with($relations);
