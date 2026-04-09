@@ -84,20 +84,28 @@ class EstimationService
                 'status' => $data['status'] ?? $estimation->status,
             ]);
 
-            // Delete existing products and recreate
+            // Process deleted products
+            if (!empty($data['deleted_product_ids']) && is_array($data['deleted_product_ids'])) {
+                EstimationProduct::whereIn('id', $data['deleted_product_ids'])
+                    ->where('estimation_id', $estimation->id) // Security check
+                    ->delete();
+            }
+
+            // Update or create products
             if (isset($data['products'])) {
-                $estimation->products()->delete();
-                $products = $this->createProducts($estimation->id, $data);
+                $products = $this->upsertProducts($estimation->id, $data, $estimation);
             } else {
                 $products = $estimation->products;
             }
 
             // Update or create other charges
-            if (isset($data['labour_charges']) ||
+            if (
+                isset($data['labour_charges']) ||
                 isset($data['transport_handling']) ||
                 isset($data['discount']) ||
                 isset($data['tax']) ||
-                isset($data['total_cft'])) {
+                isset($data['total_cft'])
+            ) {
 
                 $totalCft = $this->calculateTotalCft($products ?? $estimation->products);
                 $otherCharges = $this->updateOrCreateOtherCharges($estimation->id, $data, $totalCft);
@@ -107,7 +115,10 @@ class EstimationService
 
             // Update attachments if provided
             $attachments = $estimation->attachments;
-            if (isset($data['attachments']) && is_array($data['attachments'])) {
+            if (!empty($data['remove_attachment'])) {
+                $estimation->attachments()->delete();
+                $attachments = collect([]);
+            } elseif (isset($data['attachments']) && is_array($data['attachments'])) {
                 // Delete existing attachments
                 $estimation->attachments()->delete();
                 // Create new attachments
@@ -147,22 +158,21 @@ class EstimationService
     }
 
     /**
-     * Create products for the estimation.
+     * Upsert products for the estimation.
      *
      * @return \Illuminate\Support\Collection
      */
-    private function createProducts(int $estimationId, array $data): \Illuminate\Support\Collection
+    private function upsertProducts(int $estimationId, array $data, ?Estimation $estimation = null): \Illuminate\Support\Collection
     {
         $productsCollection = collect();
 
         foreach ($data['products'] as $productData) {
-            $product = EstimationProduct::create([
-                'estimation_id' => $estimationId,
-                'org_id' => $data['org_id'] ?? null,
-                'company_id' => $data['company_id'] ?? null,
+            $productAttributes = [
+                'org_id' => $data['org_id'] ?? $estimation?->org_id ?? null,
+                'company_id' => $data['company_id'] ?? $estimation?->company_id ?? null,
                 'product_id' => $productData['product_id'] ?? null,
-                'customer_id' => $data['customer_id'],
-                'project_id' => $data['project_id'],
+                'customer_id' => $data['customer_id'] ?? $estimation?->customer_id,
+                'project_id' => $data['project_id'] ?? $estimation?->project_id,
                 'length' => $productData['length'] ?? 0,
                 'breadth' => $productData['breadth'] ?? 0,
                 'height' => $productData['height'] ?? 0,
@@ -172,7 +182,17 @@ class EstimationService
                 'cft' => $productData['cft'] ?? 0,
                 'cost_per_cft' => $productData['rate'] ?? $productData['cost_per_cft'] ?? 0,
                 'total_amount' => $productData['total_amount'] ?? 0,
-            ]);
+            ];
+
+            if (!empty($productData['id'])) {
+                $product = EstimationProduct::where('id', $productData['id'])
+                    ->where('estimation_id', $estimationId)
+                    ->firstOrFail();
+                $product->update($productAttributes);
+            } else {
+                $productAttributes['estimation_id'] = $estimationId;
+                $product = EstimationProduct::create($productAttributes);
+            }
 
             // Calculate CFT if not provided and type is not manual
             if (empty($productData['cft']) && $productData['cft_calculation_type'] !== '5') {
@@ -188,15 +208,25 @@ class EstimationService
     }
 
     /**
+     * Create products for the estimation.
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    private function createProducts(int $estimationId, array $data, ?Estimation $estimation = null): \Illuminate\Support\Collection
+    {
+        return $this->upsertProducts($estimationId, $data, $estimation);
+    }
+
+    /**
      * Create other charges record.
      */
     private function createOtherCharges(int $estimationId, array $data, float $totalCft): ?EstimationOtherCharge
     {
         $hasCharges = isset($data['transport_handling']) ||
-                       isset($data['discount']) ||
-                       isset($data['tax']) ||
-                       isset($data['labour_charges']) ||
-                       isset($data['total_cft']);
+            isset($data['discount']) ||
+            isset($data['tax']) ||
+            isset($data['labour_charges']) ||
+            isset($data['total_cft']);
 
         if (!$hasCharges) {
             return null;
@@ -267,7 +297,7 @@ class EstimationService
                     $imagePath = $attachmentData;
                 }
             } elseif (is_array($attachmentData)) {
-                $imagePath = $attachmentData['file_path'] ?? null;
+                $imagePath = $attachmentData['image'] ?? null;
                 $description = $attachmentData['description'] ?? null;
 
                 // Handle base64 if present
