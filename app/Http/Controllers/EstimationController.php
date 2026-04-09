@@ -232,7 +232,7 @@ class EstimationController extends Controller
                 // Basic info
                 'description' => 'nullable|string',
                 'additional_notes' => 'nullable|string',
-                'status' => 'nullable|string|in:draft,approved,partially_collected,collected,cancelled',
+                'status' => 'nullable|string|in:draft,approved,pending,collected,cancelled',
 
                 // Products array (basic)
                 'products' => 'nullable|array',
