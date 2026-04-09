@@ -68,12 +68,18 @@ class EstimationController extends Controller
     /**
      * Store a newly created resource in storage.
      * Creates a complete estimation with products and other charges in a single transaction.
+     * Also supports legacy multi-product items[] format via storeWithItems().
      *
      * @param \App\Http\Requests\StoreEstimationRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreEstimationRequest $request): JsonResponse
     {
+        // Handle legacy multi-product items[] format (CRM-style)
+        if ($request->has('items') && is_array($request->items)) {
+            return $this->storeWithItems($request);
+        }
+
         try {
             \Log::info('Estimation creation request received', [
                 'data' => $request->validated(),
@@ -148,6 +154,72 @@ class EstimationController extends Controller
         }
     }
 
+    /**
+     * Store estimation with multiple product items (CRM-style).
+     * Creates one estimation and optionally stores items in estimation_items table.
+     */
+    private function storeWithItems(Request $request)
+    {
+        $validated = $request->validate([
+            'org_id' => 'nullable|integer',
+            'company_id' => 'nullable|integer',
+            'customer_id' => 'required|exists:customers,id',
+            'project_id' => 'nullable|integer|exists:projects,id',
+            'description' => 'nullable|string',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'nullable|integer|exists:products,id',
+            'items.*.product_name' => 'nullable|string|max:255',
+            'items.*.description' => 'nullable|string',
+            'items.*.quantity' => 'nullable|integer|min:1',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            $estimation = \App\Models\Estimation::create([
+                'org_id' => $validated['org_id'] ?? null,
+                'company_id' => $validated['company_id'] ?? null,
+                'customer_id' => $validated['customer_id'],
+                'project_id' => $validated['project_id'] ?? null,
+                'description' => $validated['description'] ?? null,
+                'status' => 'draft',
+            ]);
+
+            if (isset($validated['items']) && is_array($validated['items'])) {
+                foreach ($validated['items'] as $item) {
+                    // Resolve product_id: use existing or create new product inline
+                    $productId = $item['product_id'] ?? null;
+                    if (empty($productId) && !empty($item['product_name'])) {
+                        $product = \App\Models\Product::create([
+                            'name' => $item['product_name'],
+                            'description' => null,
+                        ]);
+                        $productId = $product->id;
+                    }
+
+                    // Store in estimation_items table if the model exists
+                    if (class_exists(\App\Models\EstimationItem::class)) {
+                        \App\Models\EstimationItem::create([
+                            'estimation_id' => $estimation->id,
+                            'product_id' => $productId,
+                            'description' => $item['description'] ?? null,
+                            'quantity' => $item['quantity'] ?? 1,
+                        ]);
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return response()->json(
+                $estimation->load(['customer', 'project']),
+                201
+            );
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
 
     /**
      * Display the specified resource with full details and summary.

@@ -8,9 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 class Estimation extends Model
 {
     protected $fillable = [
-        'customer_id',
         'org_id',
         'company_id',
+        'customer_id',
         'project_id',
         'description',
         'additional_notes',
@@ -38,6 +38,25 @@ class Estimation extends Model
         return $this->hasMany(\App\Models\EstimationCollection::class);
     }
 
+    public function items()
+    {
+        if (class_exists(\App\Models\EstimationItem::class)) {
+            return $this->hasMany(\App\Models\EstimationItem::class);
+        }
+
+        return $this->hasMany(\App\Models\EstimationCollection::class)->whereRaw('1 = 0');
+    }
+
+    public function organization()
+    {
+        return $this->belongsTo(\App\Models\Organization::class, 'org_id');
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(\App\Models\Company::class, 'company_id');
+    }
+
     public function otherCharge()
     {
         return $this->hasOne(\App\Models\EstimationOtherCharge::class);
@@ -47,8 +66,6 @@ class Estimation extends Model
     {
         return $this->hasMany(\App\Models\EstimationProduct::class);
     }
-
-  
 
     public function attachments()
     {
