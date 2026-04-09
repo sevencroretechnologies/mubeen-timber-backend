@@ -22,7 +22,7 @@ class OpportunityController extends Controller
                 'customer:id,name',
                 'lead:id,first_name,last_name',
                 'opportunityType', 'source', 'industry', 
-                'owner', 'contact', 'prospect', 'items'
+                'owner', 'prospect', 'items'
             ]);
 
             if ($request->filled('search')) {

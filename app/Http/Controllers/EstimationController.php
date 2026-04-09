@@ -87,15 +87,47 @@ class EstimationController extends Controller
             $result = $this->estimationService->storeCompleteEstimation($dataForService);
             $estimation = $result['estimation'];
 
-            if ($request->hasFile('attachments')) {
-                foreach ($request->file('attachments') as $file) {
-                    $path = $file->store('estimations', 'public');
+            // Handle base64-encoded attachments sent from the frontend as JSON
+            $attachmentsInput = $request->input('attachments', []);
+            if (!empty($attachmentsInput) && is_array($attachmentsInput)) {
+                $imageDir = public_path('storage/image');
+                if (!file_exists($imageDir)) {
+                    mkdir($imageDir, 0755, true);
+                }
+
+                foreach ($attachmentsInput as $base64String) {
+                    if (empty($base64String) || !is_string($base64String)) {
+                        continue;
+                    }
+
+                    // Strip the "data:image/...;base64," prefix
+                    if (preg_match('/^data:image\/(\w+);base64,/', $base64String, $matches)) {
+                        $extension = strtolower($matches[1]);
+                        $allowedExtensions = ['jpeg', 'jpg', 'png', 'gif', 'svg', 'webp'];
+                        if (!in_array($extension, $allowedExtensions)) {
+                            continue;
+                        }
+                        $imageData = substr($base64String, strpos($base64String, ',') + 1);
+                    } else {
+                        // Assume plain base64 with jpg extension
+                        $extension = 'jpg';
+                        $imageData = $base64String;
+                    }
+
+                    $decoded = base64_decode($imageData, true);
+                    if ($decoded === false) {
+                        continue;
+                    }
+
+                    $filename = time() . '_' . uniqid() . '.' . $extension;
+                    file_put_contents($imageDir . '/' . $filename, $decoded);
+
                     DB::table('estimation_attachments')->insert([
                         'estimation_id' => $estimation->id,
                         'org_id' => $estimation->org_id,
                         'company_id' => $estimation->company_id,
-                        'image' => $path,
-                        'description' => $file->getClientOriginalName(),
+                        'image' => 'storage/image/' . $filename,
+                        'description' => $filename,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
@@ -121,7 +153,7 @@ class EstimationController extends Controller
                         ->map(function ($file) {
                             return [
                                 'id' => $file->id,
-                                'url' => asset('storage/' . $file->image),
+                                'url' => asset($file->image),
                                 'name' => $file->description,
                             ];
                         }),
@@ -191,7 +223,7 @@ class EstimationController extends Controller
             ->map(function ($file) {
                 return [
                     'id' => $file->id,
-                    'url' => asset('storage/' . $file->image),
+                    'url' => asset($file->image),
                     'name' => $file->description,
                 ];
             });
@@ -333,7 +365,7 @@ class EstimationController extends Controller
                         ->map(function ($file) {
                             return [
                                 'id' => $file->id,
-                                'url' => asset('storage/' . $file->image),
+                                'url' => asset($file->image),
                                 'name' => $file->description,
                             ];
                         }),

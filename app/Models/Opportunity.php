@@ -109,11 +109,6 @@ class Opportunity extends Model
         return $this->belongsTo(Customer::class);
     }
 
-    public function contact(): BelongsTo
-    {
-        return $this->belongsTo(Contact::class, 'customer_contact_id');
-    }
-
     public function prospect(): BelongsTo
     {
         return $this->belongsTo(Prospect::class);

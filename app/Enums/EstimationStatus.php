@@ -24,7 +24,7 @@ enum EstimationStatus: string
         return match ($this) {
             self::Draft => 'Draft',
             self::Approved => 'Approved',
-            self::PartiallyCollected => 'Partially Collected',
+            self::Pending => 'Pending',
             self::Collected => 'Collected',
             self::Cancelled => 'Cancelled',
         };
@@ -35,7 +35,7 @@ enum EstimationStatus: string
         return match ($this) {
             self::Draft => 'gray',
             self::Approved => 'blue',
-            self::PartiallyCollected => 'yellow',
+            self::Pending => 'yellow',
             self::Collected => 'green',
             self::Cancelled => 'red',
         };
@@ -48,12 +48,12 @@ enum EstimationStatus: string
 
     public function canCollectMaterial(): bool
     {
-        return in_array($this, [self::Approved, self::PartiallyCollected]);
+        return in_array($this, [self::Approved, self::Pending]);
     }
 
     public function canBeCancelled(): bool
     {
-        return in_array($this, [self::Draft, self::Approved, self::PartiallyCollected]);
+        return in_array($this, [self::Draft, self::Approved, self::Pending]);
     }
 
     public function canBeEdited(): bool
