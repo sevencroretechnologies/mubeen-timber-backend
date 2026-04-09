@@ -20,6 +20,10 @@ class StoreEstimationRequest extends FormRequest
 
     /**
      * Get the validation rules that apply to the request.
+     *
+     * NEW STRUCTURE:
+     *   products[].product_id         → basic product reference
+     *   products[].items[]            → detailed line items with calculations
      */
     public function rules(): array
     {
@@ -33,19 +37,22 @@ class StoreEstimationRequest extends FormRequest
             'additional_notes' => 'nullable|string|max:2000',
             'status' => 'nullable|string|in:draft,pending,approved,rejected,cancelled,partially_collected,collected',
 
-            // Products Array
+            // Products Array (basic – only product_id)
             'products' => 'required|array|min:1',
             'products.*.product_id' => 'nullable|integer|exists:products,id',
-            'products.*.length' => 'nullable|numeric|min:0',
-            'products.*.breadth' => 'nullable|numeric|min:0',
-            'products.*.height' => 'nullable|numeric|min:0',
-            'products.*.thickness' => 'nullable|numeric|min:0',
-            'products.*.cft_calculation_type' => 'required|string|in:1,2,3,4,5',
-            'products.*.quantity' => 'required|integer|min:1',
-            'products.*.cft' => 'nullable|numeric|min:0',
-            'products.*.rate' => 'nullable|numeric|min:0',
-            'products.*.cost_per_cft' => 'nullable|numeric|min:0',
-            'products.*.total_amount' => 'nullable|numeric|min:0',
+
+            // Items Array (nested inside each product)
+            'products.*.items' => 'nullable|array',
+            'products.*.items.*.name' => 'nullable|string|max:255',
+            'products.*.items.*.length' => 'nullable|numeric|min:0',
+            'products.*.items.*.breadth' => 'nullable|numeric|min:0',
+            'products.*.items.*.height' => 'nullable|numeric|min:0',
+            'products.*.items.*.thickness' => 'nullable|numeric|min:0',
+            'products.*.items.*.unit_type' => 'nullable|string|in:1,2,3,4,5',
+            'products.*.items.*.quantity' => 'required|integer|min:1',
+            'products.*.items.*.rate' => 'nullable|numeric|min:0',
+            'products.*.items.*.item_cft' => 'nullable|numeric|min:0',
+            'products.*.items.*.total_amount' => 'nullable|numeric|min:0',
 
             // Additional Charges
             'transport_handling' => 'nullable|numeric|min:0',
@@ -70,9 +77,8 @@ class StoreEstimationRequest extends FormRequest
             'customer_id.required' => 'Customer is required',
             'project_id.required' => 'Project is required',
             'products.required' => 'At least one product is required',
-            'products.*.quantity.required' => 'Product quantity is required',
-            'products.*.quantity.min' => 'Product quantity must be at least 1',
-            'products.*.cft_calculation_type.required' => 'Calculation type is required for each product',
+            'products.*.items.*.quantity.required' => 'Item quantity is required',
+            'products.*.items.*.quantity.min' => 'Item quantity must be at least 1',
         ];
     }
 
@@ -94,7 +100,6 @@ class StoreEstimationRequest extends FormRequest
      */
     protected function prepareForValidation()
     {
-        // Ensure products array exists
         if (!$this->has('products')) {
             $this->merge(['products' => []]);
         }

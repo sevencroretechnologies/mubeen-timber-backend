@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\EstimationProduct;
 use App\Models\EstimationProductsItem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,12 +12,12 @@ class EstimationProductsItemController extends Controller
 {
     /**
      * Display a paginated listing of estimation product items.
-     * Supports filtering by org, company, estimation, customer, project, product.
+     * Supports filtering by org, company, estimation, estimation_product, product.
      */
     public function index(Request $request): JsonResponse
     {
         $query = EstimationProductsItem::with([
-            'organization', 'company', 'estimation', 'product', 'customer', 'project',
+            'organization', 'company', 'estimation', 'product', 'estimationProduct',
         ]);
 
         // ── Filters ──────────────────────────────────────────────────
@@ -33,31 +34,21 @@ class EstimationProductsItemController extends Controller
             $query->where('estimation_id', $request->estimation_id);
         }
 
-        if ($request->filled('customer_id')) {
-            $query->where('customer_id', $request->customer_id);
-        }
-
-        if ($request->filled('project_id')) {
-            $query->where('project_id', $request->project_id);
+        if ($request->filled('estimation_product_id')) {
+            $query->where('estimation_product_id', $request->estimation_product_id);
         }
 
         if ($request->filled('product_id')) {
             $query->where('product_id', $request->product_id);
         }
 
-        // ── Search by name or related entities ───────────────────────
+        // ── Search by name or product name ───────────────────────────
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhereHas('product', function ($pq) use ($search) {
                       $pq->where('name', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('customer', function ($cq) use ($search) {
-                      $cq->where('name', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('project', function ($prq) use ($search) {
-                      $prq->where('name', 'like', "%{$search}%");
                   });
             });
         }
@@ -68,7 +59,8 @@ class EstimationProductsItemController extends Controller
 
         $allowedSorts = [
             'id', 'name', 'length', 'breadth', 'height',
-            'thickness', 'quantity', 'item_cft', 'created_at',
+            'thickness', 'quantity', 'item_cft', 'rate',
+            'total_amount', 'created_at',
         ];
 
         if (in_array($sortField, $allowedSorts)) {
@@ -86,34 +78,53 @@ class EstimationProductsItemController extends Controller
 
     /**
      * Store a newly created estimation product item.
+     * Auto-calculates CFT and total_amount, then recalculates parent product total.
      */
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name'          => 'nullable|string|max:255',
-            'org_id'        => 'nullable|integer|exists:organizations,id',
-            'company_id'    => 'nullable|integer|exists:companies,id',
-            'estimation_id' => 'nullable|integer|exists:estimations,id',
-            'product_id'    => 'nullable|integer|exists:products,id',
-            'customer_id'   => 'nullable|integer|exists:customers,id',
-            'project_id'    => 'nullable|integer|exists:projects,id',
-            'length'        => 'nullable|numeric|min:0',
-            'breadth'       => 'nullable|numeric|min:0',
-            'height'        => 'nullable|numeric|min:0',
-            'thickness'     => 'nullable|numeric|min:0',
-            'quantity'      => 'required|integer|min:1',
-            'item_cft'      => 'nullable|numeric|min:0',
+            'name'                   => 'nullable|string|max:255',
+            'org_id'                 => 'nullable|integer|exists:organizations,id',
+            'company_id'             => 'nullable|integer|exists:companies,id',
+            'estimation_product_id'  => 'required|integer|exists:estimation_products,id',
+            'length'                 => 'nullable|numeric|min:0',
+            'breadth'                => 'nullable|numeric|min:0',
+            'height'                 => 'nullable|numeric|min:0',
+            'thickness'              => 'nullable|numeric|min:0',
+            'unit_type'              => 'nullable|string|in:1,2,3,4,5',
+            'quantity'               => 'required|integer|min:1',
+            'rate'                   => 'nullable|numeric|min:0',
+            'item_cft'               => 'nullable|numeric|min:0',
         ]);
 
         DB::beginTransaction();
         try {
+            // Resolve parent product to fill denormalized fields
+            $parentProduct = EstimationProduct::findOrFail($validated['estimation_product_id']);
+
+            $validated['estimation_id'] = $parentProduct->estimation_id;
+            $validated['product_id']    = $parentProduct->product_id;
+            $validated['org_id']        = $validated['org_id'] ?? $parentProduct->org_id;
+            $validated['company_id']    = $validated['company_id'] ?? $parentProduct->company_id;
+
             $item = EstimationProductsItem::create($validated);
 
-            $item->load(['organization', 'company', 'estimation', 'product', 'customer', 'project']);
+            // Auto-calculate CFT and total_amount
+            $item->performCalculations();
+            $item->save();
+
+            // Recalculate parent product total from all items
+            $parentProduct->recalculateFromItems();
+
+            $item->load(['organization', 'company', 'estimation', 'product', 'estimationProduct']);
 
             DB::commit();
 
-            return response()->json($item, 201);
+            return response()->json([
+                'message' => 'Item created successfully',
+                'data' => $item,
+                'parent_product_total' => $parentProduct->total_amount,
+            ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -128,7 +139,7 @@ class EstimationProductsItemController extends Controller
     public function show(string $id): JsonResponse
     {
         $item = EstimationProductsItem::with([
-            'organization', 'company', 'estimation', 'product', 'customer', 'project',
+            'organization', 'company', 'estimation', 'product', 'estimationProduct',
         ])->findOrFail($id);
 
         return response()->json($item);
@@ -136,6 +147,7 @@ class EstimationProductsItemController extends Controller
 
     /**
      * Update the specified estimation product item.
+     * Auto-recalculates CFT, total_amount, and parent product total.
      */
     public function update(Request $request, string $id): JsonResponse
     {
@@ -143,30 +155,39 @@ class EstimationProductsItemController extends Controller
 
         $validated = $request->validate([
             'name'          => 'sometimes|nullable|string|max:255',
-            'org_id'        => 'sometimes|nullable|integer|exists:organizations,id',
-            'company_id'    => 'sometimes|nullable|integer|exists:companies,id',
-            'estimation_id' => 'sometimes|nullable|integer|exists:estimations,id',
-            'product_id'    => 'sometimes|nullable|integer|exists:products,id',
-            'customer_id'   => 'sometimes|nullable|integer|exists:customers,id',
-            'project_id'    => 'sometimes|nullable|integer|exists:projects,id',
             'length'        => 'nullable|numeric|min:0',
             'breadth'       => 'nullable|numeric|min:0',
             'height'        => 'nullable|numeric|min:0',
             'thickness'     => 'nullable|numeric|min:0',
+            'unit_type'     => 'sometimes|nullable|string|in:1,2,3,4,5',
             'quantity'      => 'sometimes|integer|min:1',
+            'rate'          => 'nullable|numeric|min:0',
             'item_cft'      => 'nullable|numeric|min:0',
         ]);
 
         DB::beginTransaction();
         try {
             $item->fill($validated);
+
+            // Recalculate CFT and total_amount
+            $item->performCalculations();
             $item->save();
 
-            $item->load(['organization', 'company', 'estimation', 'product', 'customer', 'project']);
+            // Recalculate parent product total
+            $parentProduct = $item->estimationProduct;
+            if ($parentProduct) {
+                $parentProduct->recalculateFromItems();
+            }
+
+            $item->load(['organization', 'company', 'estimation', 'product', 'estimationProduct']);
 
             DB::commit();
 
-            return response()->json($item);
+            return response()->json([
+                'message' => 'Item updated successfully',
+                'data' => $item,
+                'parent_product_total' => $parentProduct?->total_amount,
+            ]);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -177,12 +198,23 @@ class EstimationProductsItemController extends Controller
 
     /**
      * Remove the specified estimation product item from storage.
+     * Recalculates parent product total after deletion.
      */
     public function destroy(string $id): JsonResponse
     {
         $item = EstimationProductsItem::findOrFail($id);
+        $parentProduct = $item->estimationProduct;
+
         $item->delete();
 
-        return response()->json(null, 204);
+        // Recalculate parent product total
+        if ($parentProduct) {
+            $parentProduct->recalculateFromItems();
+        }
+
+        return response()->json([
+            'message' => 'Item deleted successfully',
+            'parent_product_total' => $parentProduct?->total_amount,
+        ], 200);
     }
 }

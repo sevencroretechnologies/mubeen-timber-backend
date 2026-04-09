@@ -49,24 +49,8 @@ return new class extends Migration
                   ->constrained('projects')
                   ->cascadeOnDelete();
 
-            // Dimensions
-            $table->decimal('length', 10, 2)->nullable()->default(0);
-            $table->decimal('breadth', 10, 2)->nullable()->default(0);
-            $table->decimal('height', 10, 2)->nullable()->default(0);
-            $table->decimal('thickness', 10, 2)->nullable()->default(0);
-
-            // CFT Calculation Type
-            // 1 = length * breadth * height / 1728
-            // 2 = length * breadth * thickness / 144
-            // 3 = length * breadth * height
-            // 4 = custom
-            // 5 = manual
-            $table->string('cft_calculation_type')->default('1');
-
-            // Quantity & Costs
-            $table->integer('quantity')->default(1);
-            $table->decimal('cft', 10, 2)->nullable()->default(0);
-            $table->decimal('cost_per_cft', 10, 2)->nullable()->default(0);
+            // Aggregated values from items
+            $table->decimal('total_cft', 12, 2)->default(0);
             $table->decimal('total_amount', 10, 2)->nullable()->default(0);
 
             $table->softDeletes();

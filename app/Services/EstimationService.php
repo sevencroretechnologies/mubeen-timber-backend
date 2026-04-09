@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Estimation;
 use App\Models\EstimationProduct;
+use App\Models\EstimationProductsItem;
 use App\Models\EstimationOtherCharge;
 use App\Models\EstimationAttachment;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +14,15 @@ use Illuminate\Support\Facades\Storage;
 class EstimationService
 {
     /**
-     * Store complete estimation with products and charges in a single transaction.
+     * Store complete estimation with products, items, and charges in a single transaction.
+     *
+     * NEW FLOW:
+     *   1. Create Estimation
+     *   2. Create Products (basic – only product_id)
+     *   3. Create Items for each product (dimensions, CFT, rate, total)
+     *   4. Aggregate item totals → product total
+     *   5. Create Other Charges
+     *   6. Calculate grand total → save to estimation
      *
      * @param array $data
      * @return array
@@ -25,32 +34,34 @@ class EstimationService
             // Step 1: Create Estimation
             $estimation = $this->createEstimation($data);
 
-            // Step 2: Create Products
-            $products = $this->createProducts($estimation->id, $data);
+            // Step 2: Create Products (basic) + Step 3: Create Items
+            $products = $this->createProductsWithItems($estimation, $data);
 
-            // Step 3: Calculate total CFT from products (if not provided)
-            $totalCft = $this->calculateTotalCft($products);
+            // Step 4: Calculate total CFT from all items
+            $totalCft = $this->calculateTotalCft($estimation);
 
-            // Step 4: Create Other Charges
+            // Step 5: Create Other Charges
             $otherCharges = $this->createOtherCharges($estimation->id, $data, $totalCft);
 
-            // Step 5: Calculate and save grand total
-            $grandTotal = $this->calculateGrandTotal($products, $otherCharges);
+            // Step 6: Calculate and save grand total
+            $grandTotal = $this->calculateGrandTotal($estimation, $otherCharges);
             $estimation->update(['grand_total' => $grandTotal]);
 
-            // Step 6: Create Attachments if provided
-            $attachments = null;
-            if (isset($data['attachments']) && is_array($data['attachments'])) {
-                $attachments = $this->createAttachments($estimation->id, $data);
-            }
-
-            // Step 7: Load relationships
-            $estimation->load(['project', 'customer', 'products.product', 'otherCharge', 'attachments']);
+            // Load relationships
+            $estimation->load([
+                'project',
+                'customer',
+                'products.product',
+                'products.items',
+                'otherCharge',
+                'attachments',
+            ]);
 
             Log::info('Estimation created successfully', [
                 'estimation_id' => $estimation->id,
                 'customer_id' => $data['customer_id'] ?? null,
                 'project_id' => $data['project_id'] ?? null,
+                'total_products' => $products->count(),
             ]);
 
             return [
@@ -59,13 +70,12 @@ class EstimationService
                 'other_charges' => $otherCharges,
                 'total_cft' => $totalCft,
                 'grand_total' => $grandTotal,
-                'attachments' => $attachments,
             ];
         });
     }
 
     /**
-     * Update an existing estimation with products and charges.
+     * Update an existing estimation with products, items, and charges.
      *
      * @param int $estimationId
      * @param array $data
@@ -75,7 +85,7 @@ class EstimationService
     public function updateCompleteEstimation(int $estimationId, array $data): array
     {
         return DB::transaction(function () use ($estimationId, $data) {
-            $estimation = Estimation::with(['products', 'otherCharge', 'attachments'])->findOrFail($estimationId);
+            $estimation = Estimation::with(['products.items', 'otherCharge', 'attachments'])->findOrFail($estimationId);
 
             // Update basic info
             $estimation->update([
@@ -84,16 +94,16 @@ class EstimationService
                 'status' => $data['status'] ?? $estimation->status,
             ]);
 
-            // Process deleted products
+            // Process deleted products (cascades to items)
             if (!empty($data['deleted_product_ids']) && is_array($data['deleted_product_ids'])) {
                 EstimationProduct::whereIn('id', $data['deleted_product_ids'])
-                    ->where('estimation_id', $estimation->id) // Security check
+                    ->where('estimation_id', $estimation->id)
                     ->delete();
             }
 
-            // Update or create products
+            // Update or create products & items
             if (isset($data['products'])) {
-                $products = $this->upsertProducts($estimation->id, $data, $estimation);
+                $products = $this->upsertProductsWithItems($estimation, $data);
             } else {
                 $products = $estimation->products;
             }
@@ -106,8 +116,7 @@ class EstimationService
                 isset($data['tax']) ||
                 isset($data['total_cft'])
             ) {
-
-                $totalCft = $this->calculateTotalCft($products ?? $estimation->products);
+                $totalCft = $this->calculateTotalCft($estimation);
                 $otherCharges = $this->updateOrCreateOtherCharges($estimation->id, $data, $totalCft);
             } else {
                 $otherCharges = $estimation->otherCharge;
@@ -119,17 +128,22 @@ class EstimationService
                 $estimation->attachments()->delete();
                 $attachments = collect([]);
             } elseif (isset($data['attachments']) && is_array($data['attachments'])) {
-                // Delete existing attachments
                 $estimation->attachments()->delete();
-                // Create new attachments
                 $attachments = $this->createAttachments($estimation->id, $data);
             }
 
-            // Calculate and save grand total
-            $grandTotal = $this->calculateGrandTotal($products ?? $estimation->products, $otherCharges);
+            // Recalculate grand total
+            $grandTotal = $this->calculateGrandTotal($estimation, $otherCharges);
             $estimation->update(['grand_total' => $grandTotal]);
 
-            $estimation->load(['project', 'customer', 'products.product', 'otherCharge', 'attachments']);
+            $estimation->load([
+                'project',
+                'customer',
+                'products.product',
+                'products.items',
+                'otherCharge',
+                'attachments',
+            ]);
 
             return [
                 'estimation' => $estimation,
@@ -140,6 +154,8 @@ class EstimationService
             ];
         });
     }
+
+    // ─── Private Helpers ─────────────────────────────────────────────
 
     /**
      * Create the base estimation record.
@@ -158,49 +174,51 @@ class EstimationService
     }
 
     /**
-     * Upsert products for the estimation.
+     * Create products (basic) with their items (detailed).
+     *
+     * Expected input:
+     * products: [
+     *   {
+     *     product_id: 1,
+     *     items: [
+     *       { length, breadth, thickness, unit_type, quantity, rate },
+     *       ...
+     *     ]
+     *   },
+     *   ...
+     * ]
      *
      * @return \Illuminate\Support\Collection
      */
-    private function upsertProducts(int $estimationId, array $data, ?Estimation $estimation = null): \Illuminate\Support\Collection
+    private function createProductsWithItems(Estimation $estimation, array $data): \Illuminate\Support\Collection
     {
         $productsCollection = collect();
 
+        if (empty($data['products'])) {
+            return $productsCollection;
+        }
+
         foreach ($data['products'] as $productData) {
-            $productAttributes = [
-                'org_id' => $data['org_id'] ?? $estimation?->org_id ?? null,
-                'company_id' => $data['company_id'] ?? $estimation?->company_id ?? null,
+            // Step 2: Create product (basic – only product_id)
+            $product = EstimationProduct::create([
+                'estimation_id' => $estimation->id,
+                'org_id' => $data['org_id'] ?? $estimation->org_id,
+                'company_id' => $data['company_id'] ?? $estimation->company_id,
                 'product_id' => $productData['product_id'] ?? null,
-                'customer_id' => $data['customer_id'] ?? $estimation?->customer_id,
-                'project_id' => $data['project_id'] ?? $estimation?->project_id,
-                'length' => $productData['length'] ?? 0,
-                'breadth' => $productData['breadth'] ?? 0,
-                'height' => $productData['height'] ?? 0,
-                'thickness' => $productData['thickness'] ?? 0,
-                'cft_calculation_type' => $productData['cft_calculation_type'] ?? '1',
-                'quantity' => $productData['quantity'] ?? 1,
-                'cft' => $productData['cft'] ?? 0,
-                'cost_per_cft' => $productData['rate'] ?? $productData['cost_per_cft'] ?? 0,
-                'total_amount' => $productData['total_amount'] ?? 0,
-            ];
+                'customer_id' => $data['customer_id'] ?? $estimation->customer_id,
+                'project_id' => $data['project_id'] ?? $estimation->project_id,
+                'total_amount' => 0, // will be aggregated from items
+            ]);
 
-            if (!empty($productData['id'])) {
-                $product = EstimationProduct::where('id', $productData['id'])
-                    ->where('estimation_id', $estimationId)
-                    ->firstOrFail();
-                $product->update($productAttributes);
-            } else {
-                $productAttributes['estimation_id'] = $estimationId;
-                $product = EstimationProduct::create($productAttributes);
+            // Step 3: Create items for this product
+            if (!empty($productData['items']) && is_array($productData['items'])) {
+                $this->createItemsForProduct($product, $productData['items'], $estimation);
             }
 
-            // Calculate CFT if not provided and type is not manual
-            if (empty($productData['cft']) && $productData['cft_calculation_type'] !== '5') {
-                $product->cft = round($product->calculateCft(), 2);
-                $product->total_amount = round($product->calculateTotalAmount(), 2);
-                $product->save();
-            }
+            // Step 4: Aggregate items → product total
+            $product->recalculateFromItems();
 
+            $product->load(['product', 'items']);
             $productsCollection->push($product);
         }
 
@@ -208,13 +226,130 @@ class EstimationService
     }
 
     /**
-     * Create products for the estimation.
+     * Create items for a specific estimation product.
+     */
+    private function createItemsForProduct(EstimationProduct $product, array $items, Estimation $estimation): void
+    {
+        foreach ($items as $itemData) {
+            $item = EstimationProductsItem::create([
+                'name' => $itemData['name'] ?? null,
+                'org_id' => $product->org_id,
+                'company_id' => $product->company_id,
+                'estimation_product_id' => $product->id,
+                'estimation_id' => $estimation->id,
+                'product_id' => $product->product_id,
+                'length' => $itemData['length'] ?? 0,
+                'breadth' => $itemData['breadth'] ?? 0,
+                'height' => $itemData['height'] ?? 0,
+                'thickness' => $itemData['thickness'] ?? 0,
+                'unit_type' => $itemData['unit_type'] ?? '1',
+                'quantity' => $itemData['quantity'] ?? 1,
+                'rate' => $itemData['rate'] ?? 0,
+                'item_cft' => $itemData['item_cft'] ?? 0,
+            ]);
+
+            // Auto-calculate CFT and total
+            $item->performCalculations();
+            $item->save();
+        }
+    }
+
+    /**
+     * Upsert products and items during update.
      *
      * @return \Illuminate\Support\Collection
      */
-    private function createProducts(int $estimationId, array $data, ?Estimation $estimation = null): \Illuminate\Support\Collection
+    private function upsertProductsWithItems(Estimation $estimation, array $data): \Illuminate\Support\Collection
     {
-        return $this->upsertProducts($estimationId, $data, $estimation);
+        $productsCollection = collect();
+
+        foreach ($data['products'] as $productData) {
+            if (!empty($productData['id'])) {
+                // Update existing product
+                $product = EstimationProduct::where('id', $productData['id'])
+                    ->where('estimation_id', $estimation->id)
+                    ->firstOrFail();
+
+                $product->update([
+                    'product_id' => $productData['product_id'] ?? $product->product_id,
+                ]);
+
+                // Handle deleted items
+                if (!empty($productData['deleted_item_ids'])) {
+                    EstimationProductsItem::whereIn('id', $productData['deleted_item_ids'])
+                        ->where('estimation_product_id', $product->id)
+                        ->delete();
+                }
+
+                // Upsert items
+                if (!empty($productData['items'])) {
+                    $this->upsertItemsForProduct($product, $productData['items'], $estimation);
+                }
+            } else {
+                // Create new product
+                $product = EstimationProduct::create([
+                    'estimation_id' => $estimation->id,
+                    'org_id' => $data['org_id'] ?? $estimation->org_id,
+                    'company_id' => $data['company_id'] ?? $estimation->company_id,
+                    'product_id' => $productData['product_id'] ?? null,
+                    'customer_id' => $data['customer_id'] ?? $estimation->customer_id,
+                    'project_id' => $data['project_id'] ?? $estimation->project_id,
+                    'total_amount' => 0,
+                ]);
+
+                // Create items
+                if (!empty($productData['items'])) {
+                    $this->createItemsForProduct($product, $productData['items'], $estimation);
+                }
+            }
+
+            // Recalculate product total from items
+            $product->recalculateFromItems();
+
+            $product->load(['product', 'items']);
+            $productsCollection->push($product);
+        }
+
+        return $productsCollection;
+    }
+
+    /**
+     * Upsert items for an existing product.
+     */
+    private function upsertItemsForProduct(EstimationProduct $product, array $items, Estimation $estimation): void
+    {
+        foreach ($items as $itemData) {
+            $attributes = [
+                'name' => $itemData['name'] ?? null,
+                'org_id' => $product->org_id,
+                'company_id' => $product->company_id,
+                'estimation_id' => $estimation->id,
+                'product_id' => $product->product_id,
+                'length' => $itemData['length'] ?? 0,
+                'breadth' => $itemData['breadth'] ?? 0,
+                'height' => $itemData['height'] ?? 0,
+                'thickness' => $itemData['thickness'] ?? 0,
+                'unit_type' => $itemData['unit_type'] ?? '1',
+                'quantity' => $itemData['quantity'] ?? 1,
+                'rate' => $itemData['rate'] ?? 0,
+                'item_cft' => $itemData['item_cft'] ?? 0,
+            ];
+
+            if (!empty($itemData['id'])) {
+                // Update existing item
+                $item = EstimationProductsItem::where('id', $itemData['id'])
+                    ->where('estimation_product_id', $product->id)
+                    ->firstOrFail();
+                $item->update($attributes);
+            } else {
+                // Create new item
+                $attributes['estimation_product_id'] = $product->id;
+                $item = EstimationProductsItem::create($attributes);
+            }
+
+            $item->performCalculations();
+            $item->save();
+        }
     }
 
     /**
@@ -269,7 +404,6 @@ class EstimationService
 
     /**
      * Create attachments for the estimation.
-     * Expects attachments data with file_path or base64 data.
      */
     private function createAttachments(int $estimationId, array $data): \Illuminate\Support\Collection
     {
@@ -284,23 +418,19 @@ class EstimationService
                 continue;
             }
 
-            // If attachment is a string (file path or base64), handle it
             $imagePath = null;
             $description = null;
 
             if (is_string($attachmentData)) {
-                // Check if it's base64 data
                 if (preg_match('/^data:image\/(\w+);base64,/i', $attachmentData, $matches)) {
                     $imagePath = $this->saveBase64Image($attachmentData, $estimationId);
                 } else {
-                    // Assume it's already a file path
                     $imagePath = $attachmentData;
                 }
             } elseif (is_array($attachmentData)) {
                 $imagePath = $attachmentData['image'] ?? null;
                 $description = $attachmentData['description'] ?? null;
 
-                // Handle base64 if present
                 if (isset($attachmentData['base64']) && preg_match('/^data:image\/(\w+);base64,/i', $attachmentData['base64'])) {
                     $imagePath = $this->saveBase64Image($attachmentData['base64'], $estimationId);
                 }
@@ -326,11 +456,9 @@ class EstimationService
      */
     private function saveBase64Image(string $base64Data, int $estimationId): string
     {
-        // Extract the mime type and base64 content
         preg_match('/^data:image\/(\w+);base64,/i', $base64Data, $matches);
         $extension = $matches[1] ?? 'png';
 
-        // Remove the data URI scheme
         $base64Content = preg_replace('/^data:image\/\w+;base64,/i', '', $base64Data);
         $imageData = base64_decode($base64Content);
 
@@ -338,41 +466,38 @@ class EstimationService
             throw new \Exception('Invalid base64 image data');
         }
 
-        // Create directory if it doesn't exist
         $directory = public_path("uploads/estimations/{$estimationId}");
         if (!file_exists($directory)) {
             mkdir($directory, 0755, true);
         }
 
-        // Generate unique filename
         $filename = time() . '_' . uniqid() . ".{$extension}";
         $filepath = "uploads/estimations/{$estimationId}/{$filename}";
 
-        // Save the file
         file_put_contents(public_path($filepath), $imageData);
 
         return $filepath;
     }
 
     /**
-     * Calculate total CFT from all products.
+     * Calculate total CFT from all product items in the estimation.
      */
-    private function calculateTotalCft($products): float
+    private function calculateTotalCft(Estimation $estimation): float
     {
-        return (float) $products->sum(function ($product) {
-            return ($product->cft ?? 0) * ($product->quantity ?? 1);
-        });
+        return (float) EstimationProductsItem::whereIn(
+            'estimation_product_id',
+            $estimation->products()->pluck('id')
+        )->selectRaw('SUM(item_cft * quantity) as total_cft')
+         ->value('total_cft') ?? 0;
     }
 
     /**
-     * Calculate grand total from products and other charges.
+     * Calculate grand total from product totals and other charges.
      */
-    private function calculateGrandTotal($products, $otherCharges): float
+    private function calculateGrandTotal(Estimation $estimation, $otherCharges): float
     {
-        // Sum of all product totals
-        $productsTotal = $products->sum(function ($product) {
-            return $product->total_amount ?? 0;
-        });
+        // Sum of all product totals (each product total is aggregated from its items)
+        $productsTotal = (float) $estimation->products()->sum('total_amount');
 
         // Add charges
         $chargesTotal = 0;
@@ -393,9 +518,6 @@ class EstimationService
     {
         DB::transaction(function () use ($estimationId) {
             $estimation = Estimation::findOrFail($estimationId);
-
-            // Products will be cascade deleted due to foreign key
-            // Other charges will be cascade deleted due to foreign key
             $estimation->delete();
         });
     }

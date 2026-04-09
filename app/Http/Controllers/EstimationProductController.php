@@ -15,7 +15,7 @@ class EstimationProductController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = EstimationProduct::with(['organization', 'company', 'product', 'customer', 'project']);
+        $query = EstimationProduct::with(['organization', 'company', 'product', 'customer', 'project', 'items']);
 
         // ── Filters ──────────────────────────────────────────────────
 
@@ -25,6 +25,10 @@ class EstimationProductController extends Controller
 
         if ($request->filled('company_id')) {
             $query->where('company_id', $request->company_id);
+        }
+
+        if ($request->filled('estimation_id')) {
+            $query->where('estimation_id', $request->estimation_id);
         }
 
         if ($request->filled('customer_id')) {
@@ -59,11 +63,7 @@ class EstimationProductController extends Controller
         $sortField = $request->input('sort_by', 'created_at');
         $sortDir   = $request->input('sort_dir', 'desc');
 
-        // Whitelist allowed sort columns
-        $allowedSorts = [
-            'id', 'length', 'breadth', 'height', 'thickness',
-            'quantity', 'cft', 'cost_per_cft', 'total_amount', 'created_at',
-        ];
+        $allowedSorts = ['id', 'total_amount', 'created_at'];
 
         if (in_array($sortField, $allowedSorts)) {
             $query->orderBy($sortField, $sortDir === 'asc' ? 'asc' : 'desc');
@@ -79,48 +79,34 @@ class EstimationProductController extends Controller
     }
 
     /**
-     * Store a newly created estimation product.
-     * Automatically calculates CFT and total_amount based on the calculation type.
+     * Store a newly created estimation product (basic – only product_id).
+     * Items are added separately via EstimationProductsItemController.
      */
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'org_id'               => 'required|integer|exists:organizations,id',
-            'company_id'           => 'required|integer|exists:companies,id',
-            'product_id'           => 'required|integer|exists:products,id',
-            'customer_id'          => 'required|integer|exists:customers,id',
-            'project_id'           => 'required|integer|exists:projects,id',
-            'length'               => 'nullable|numeric|min:0',
-            'breadth'              => 'nullable|numeric|min:0',
-            'height'               => 'nullable|numeric|min:0',
-            'thickness'            => 'nullable|numeric|min:0',
-            'cft_calculation_type' => 'required|string|in:1,2,3,4,5',
-            'quantity'             => 'required|integer|min:1',
-            'cft'                  => 'nullable|numeric|min:0',
-            'cost_per_cft'         => 'nullable|numeric|min:0',
-            'total_amount'         => 'nullable|numeric|min:0',
+            'estimation_id' => 'required|integer|exists:estimations,id',
+            'org_id'        => 'nullable|integer|exists:organizations,id',
+            'company_id'    => 'nullable|integer|exists:companies,id',
+            'product_id'    => 'required|integer|exists:products,id',
+            'customer_id'   => 'required|integer|exists:customers,id',
+            'project_id'    => 'required|integer|exists:projects,id',
         ]);
 
         DB::beginTransaction();
         try {
-            $estimationProduct = new EstimationProduct($validated);
+            $estimationProduct = EstimationProduct::create(array_merge($validated, [
+                'total_amount' => 0,
+            ]));
 
-            // Auto-calculate CFT for types 1-4, only type 5 uses manual CFT
-            if ($validated['cft_calculation_type'] !== '5') {
-                $estimationProduct->cft = round($estimationProduct->calculateCft(), 2);
-            }
-
-            // Auto-calculate total_amount: cft * cost_per_cft * quantity
-            $estimationProduct->total_amount = round($estimationProduct->calculateTotalAmount(), 2);
-
-            $estimationProduct->save();
-
-            // Load relationships for response
-            $estimationProduct->load(['organization', 'company', 'product', 'customer', 'project']);
+            $estimationProduct->load(['organization', 'company', 'product', 'customer', 'project', 'items']);
 
             DB::commit();
 
-            return response()->json($estimationProduct, 201);
+            return response()->json([
+                'message' => 'Product added successfully. Now add items for this product.',
+                'data' => $estimationProduct,
+            ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['message' => 'Failed to create estimation product: ' . $e->getMessage()], 500);
@@ -128,64 +114,56 @@ class EstimationProductController extends Controller
     }
 
     /**
-     * Display the specified estimation product.
+     * Display the specified estimation product with its items.
      */
     public function show(string $id): JsonResponse
     {
-        $estimationProduct = EstimationProduct::with(['organization', 'company', 'product', 'customer', 'project'])
-            ->findOrFail($id);
+        $estimationProduct = EstimationProduct::with([
+            'organization', 'company', 'product', 'customer', 'project', 'items',
+        ])->findOrFail($id);
 
-        return response()->json($estimationProduct);
+        return response()->json([
+            'data' => $estimationProduct,
+            'summary' => [
+                'total_items' => $estimationProduct->items->count(),
+                'total_cft' => $estimationProduct->total_cft,
+                'total_quantity' => $estimationProduct->total_quantity,
+                'total_amount' => $estimationProduct->total_amount,
+            ],
+        ]);
     }
 
     /**
-     * Update the specified estimation product.
-     * Recalculates CFT and total_amount on update.
+     * Update the specified estimation product (only product_id can change).
      */
     public function update(Request $request, string $id): JsonResponse
     {
         $estimationProduct = EstimationProduct::findOrFail($id);
 
         $validated = $request->validate([
-            'org_id'               => 'sometimes|integer|exists:organizations,id',
-            'company_id'           => 'sometimes|integer|exists:companies,id',
-            'product_id'           => 'sometimes|integer|exists:products,id',
-            'customer_id'          => 'sometimes|integer|exists:customers,id',
-            'project_id'           => 'sometimes|integer|exists:projects,id',
-            'length'               => 'nullable|numeric|min:0',
-            'breadth'              => 'nullable|numeric|min:0',
-            'height'               => 'nullable|numeric|min:0',
-            'thickness'            => 'nullable|numeric|min:0',
-            'cft_calculation_type' => 'sometimes|string|in:1,2,3,4,5',
-            'quantity'             => 'sometimes|integer|min:1',
-            'cft'                  => 'nullable|numeric|min:0',
-            'cost_per_cft'         => 'nullable|numeric|min:0',
-            'total_amount'         => 'nullable|numeric|min:0',
+            'product_id' => 'sometimes|integer|exists:products,id',
         ]);
 
         DB::beginTransaction();
         try {
             $estimationProduct->fill($validated);
-
-            // Determine the calculation type (use updated or existing)
-            $calcType = $estimationProduct->cft_calculation_type;
-
-            // Auto-calculate CFT for types 1-4, only type 5 uses manual CFT
-            if ($calcType !== '5') {
-                $estimationProduct->cft = round($estimationProduct->calculateCft(), 2);
-            }
-
-            // Auto-calculate total_amount: cft * cost_per_cft * quantity
-            $estimationProduct->total_amount = round($estimationProduct->calculateTotalAmount(), 2);
-
             $estimationProduct->save();
 
-            // Load relationships for response
-            $estimationProduct->load(['organization', 'company', 'product', 'customer', 'project']);
+            // If product_id changed, update all child items
+            if (isset($validated['product_id'])) {
+                $estimationProduct->items()->update([
+                    'product_id' => $validated['product_id'],
+                ]);
+            }
+
+            $estimationProduct->load(['organization', 'company', 'product', 'customer', 'project', 'items']);
 
             DB::commit();
 
-            return response()->json($estimationProduct);
+            return response()->json([
+                'message' => 'Product updated successfully',
+                'data' => $estimationProduct,
+            ]);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['message' => 'Failed to update estimation product: ' . $e->getMessage()], 500);
@@ -194,12 +172,13 @@ class EstimationProductController extends Controller
 
     /**
      * Remove the specified estimation product from storage.
+     * This cascades to delete all items.
      */
     public function destroy(string $id): JsonResponse
     {
         $estimationProduct = EstimationProduct::findOrFail($id);
         $estimationProduct->delete();
 
-        return response()->json(null, 204);
+        return response()->json(['message' => 'Product and all its items deleted successfully'], 200);
     }
 }

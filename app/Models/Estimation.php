@@ -48,6 +48,21 @@ class Estimation extends Model
         return $this->hasMany(\App\Models\EstimationProduct::class);
     }
 
+    /**
+     * Get all product items across all products (via estimation_products).
+     */
+    public function productItems()
+    {
+        return $this->hasManyThrough(
+            \App\Models\EstimationProductsItem::class,
+            \App\Models\EstimationProduct::class,
+            'estimation_id',          // FK on estimation_products
+            'estimation_product_id',  // FK on estimation_products_item
+            'id',                     // local key on estimations
+            'id'                      // local key on estimation_products
+        );
+    }
+
   
 
     public function attachments()

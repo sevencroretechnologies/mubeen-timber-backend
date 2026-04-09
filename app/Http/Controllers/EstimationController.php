@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\EstimationStatus;
 use App\Http\Requests\StoreEstimationRequest;
 use App\Models\Estimation;
+use App\Models\EstimationCollection;
 use App\Services\EstimationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -25,39 +26,34 @@ class EstimationController extends Controller
     {
         $this->estimationService = $estimationService;
     }
+
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
-        $query = \App\Models\Estimation::with(['project', 'customer']);
+        $query = Estimation::with(['project', 'customer']);
 
-        // Filter by org_id if provided
         if ($request->has('org_id')) {
             $query->where('org_id', $request->org_id);
         }
 
-        // Filter by company_id if provided
         if ($request->has('company_id')) {
             $query->where('company_id', $request->company_id);
         }
 
-        // Filter by customer_id if provided
         if ($request->has('customer_id')) {
             $query->where('customer_id', $request->customer_id);
         }
 
-        // Filter by project_id if provided
         if ($request->has('project_id')) {
             $query->where('project_id', $request->project_id);
         }
 
-        // Filter by status if provided
         if ($request->has('status')) {
             $query->where('status', $request->status);
         }
 
-        // Order by latest first
         $query->orderBy('created_at', 'desc');
 
         $estimations = $query->get();
@@ -67,7 +63,7 @@ class EstimationController extends Controller
 
     /**
      * Store a newly created resource in storage.
-     * Creates a complete estimation with products and other charges in a single transaction.
+     * Creates a complete estimation with products, items, and other charges in a single transaction.
      *
      * @param \App\Http\Requests\StoreEstimationRequest $request
      * @return \Illuminate\Http\JsonResponse
@@ -148,27 +144,31 @@ class EstimationController extends Controller
         }
     }
 
-
     /**
      * Display the specified resource with full details and summary.
      */
     public function show(string $id): JsonResponse
     {
-        $estimation = \App\Models\Estimation::with([
+        $estimation = Estimation::with([
             'project',
             'customer',
             'products.product',
+            'products.items',
             'otherCharge',
             'attachments'
         ])->findOrFail($id);
 
-        // Calculate summary
+        // Calculate summary from items
         $productsTotal = $estimation->products->sum(function ($p) {
             return $p->total_amount ?? 0;
         });
-        $totalCft = $estimation->products->sum(function ($p) {
-            return ($p->cft ?? 0) * ($p->quantity ?? 1);
-        });
+
+        $totalCft = 0;
+        foreach ($estimation->products as $product) {
+            foreach ($product->items as $item) {
+                $totalCft += ($item->item_cft ?? 0) * ($item->quantity ?? 1);
+            }
+        }
 
         $chargesTotal = 0;
         if ($estimation->otherCharge) {
@@ -178,23 +178,24 @@ class EstimationController extends Controller
             $chargesTotal -= ($estimation->otherCharge->discount ?? 0);
         }
 
-            // Attachments from DB
-            $attachments = DB::table('estimation_attachments')
-                ->where('estimation_id', $estimation->id)
-                ->whereNull('deleted_at')
-                ->get()
-                ->map(function ($file) {
-                    return [
-                        'id' => $file->id,
-                        'url' => asset('storage/' . $file->image),
-                        'name' => $file->description,
-                    ];
-                });
+        // Attachments from DB
+        $attachments = DB::table('estimation_attachments')
+            ->where('estimation_id', $estimation->id)
+            ->whereNull('deleted_at')
+            ->get()
+            ->map(function ($file) {
+                return [
+                    'id' => $file->id,
+                    'url' => asset('storage/' . $file->image),
+                    'name' => $file->description,
+                ];
+            });
 
         return response()->json([
             'data' => $estimation,
             'summary' => [
                 'total_products' => $estimation->products->count(),
+                'total_items' => $estimation->products->sum(fn($p) => $p->items->count()),
                 'total_cft' => round($totalCft, 2),
                 'products_total' => round($productsTotal, 2),
                 'charges_total' => round($chargesTotal, 2),
@@ -217,7 +218,7 @@ class EstimationController extends Controller
 
     /**
      * Update the specified resource in storage.
-     * Updates complete estimation with products and charges in a single transaction.
+     * Updates complete estimation with products, items, and charges in a single transaction.
      */
     public function update(Request $request, string $id): JsonResponse
     {
@@ -233,21 +234,27 @@ class EstimationController extends Controller
                 'additional_notes' => 'nullable|string',
                 'status' => 'nullable|string|in:draft,approved,partially_collected,collected,cancelled',
 
-                // Products array (for complete update)
+                // Products array (basic)
                 'products' => 'nullable|array',
                 'products.*.id' => 'nullable|integer|exists:estimation_products,id',
+                'products.*.product_id' => 'nullable|integer|exists:products,id',
                 'deleted_product_ids' => 'nullable|array',
                 'deleted_product_ids.*' => 'integer|exists:estimation_products,id',
-                'products.*.product_id' => 'nullable|integer|exists:products,id',
-                'products.*.length' => 'nullable|numeric',
-                'products.*.breadth' => 'nullable|numeric',
-                'products.*.height' => 'nullable|numeric',
-                'products.*.thickness' => 'nullable|numeric',
-                'products.*.cft_calculation_type' => 'nullable|string|in:1,2,3,4,5',
-                'products.*.quantity' => 'nullable|integer|min:1',
-                'products.*.cft' => 'nullable|numeric',
-                'products.*.rate' => 'nullable|numeric',
-                'products.*.total_amount' => 'nullable|numeric',
+
+                // Items array (nested inside each product)
+                'products.*.items' => 'nullable|array',
+                'products.*.items.*.id' => 'nullable|integer|exists:estimation_products_item,id',
+                'products.*.items.*.name' => 'nullable|string|max:255',
+                'products.*.items.*.length' => 'nullable|numeric',
+                'products.*.items.*.breadth' => 'nullable|numeric',
+                'products.*.items.*.height' => 'nullable|numeric',
+                'products.*.items.*.thickness' => 'nullable|numeric',
+                'products.*.items.*.unit_type' => 'nullable|string|in:1,2,3,4,5',
+                'products.*.items.*.quantity' => 'nullable|integer|min:1',
+                'products.*.items.*.rate' => 'nullable|numeric',
+                'products.*.items.*.item_cft' => 'nullable|numeric',
+                'products.*.deleted_item_ids' => 'nullable|array',
+                'products.*.deleted_item_ids.*' => 'integer',
 
                 // Other charges
                 'labour_charges' => 'nullable|numeric|min:0',
@@ -275,7 +282,7 @@ class EstimationController extends Controller
                 $attachmentsToDelete = DB::table('estimation_attachments')
                     ->whereIn('id', $request->deleted_attachment_ids)
                     ->get();
-                
+
                 foreach ($attachmentsToDelete as $file) {
                     if ($file->image) {
                         Storage::disk('public')->delete($file->image);
@@ -355,19 +362,18 @@ class EstimationController extends Controller
      */
     public function destroy(string $id)
     {
-        $estimation = \App\Models\Estimation::findOrFail($id);
+        $estimation = Estimation::findOrFail($id);
         $estimation->delete();
 
         return response()->json(null, 204);
     }
-
 
     /**
      * Approve an estimation.
      */
     public function approve(string $id)
     {
-        $estimation = \App\Models\Estimation::findOrFail($id);
+        $estimation = Estimation::findOrFail($id);
 
         if (!$estimation->canBeApproved()) {
             return response()->json([
@@ -388,7 +394,7 @@ class EstimationController extends Controller
      */
     public function cancel(string $id)
     {
-        $estimation = \App\Models\Estimation::findOrFail($id);
+        $estimation = Estimation::findOrFail($id);
 
         $estimation->cancel();
 
@@ -403,7 +409,7 @@ class EstimationController extends Controller
      */
     public function markAsCollected(string $id)
     {
-        $estimation = \App\Models\Estimation::findOrFail($id);
+        $estimation = Estimation::findOrFail($id);
 
         if (!$estimation->canCollectMaterial()) {
             return response()->json([
@@ -424,7 +430,7 @@ class EstimationController extends Controller
      */
     public function collectMaterial(Request $request, string $id)
     {
-        $estimation = \App\Models\Estimation::findOrFail($id);
+        $estimation = Estimation::findOrFail($id);
 
         if (!$estimation->canCollectMaterial()) {
             return response()->json([
@@ -490,7 +496,7 @@ class EstimationController extends Controller
      */
     public function getCollections(string $id)
     {
-        $estimation = \App\Models\Estimation::with(['collections.woodType', 'collections.warehouse', 'collections.collectedBy'])
+        $estimation = Estimation::with(['collections.woodType', 'collections.warehouse', 'collections.collectedBy'])
             ->findOrFail($id);
 
         $totalCollected = $estimation->collections->sum('quantity_cft');
