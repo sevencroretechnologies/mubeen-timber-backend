@@ -245,6 +245,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('purchase-orders/{id}/send', [\App\Http\Controllers\Api\Timber\TimberPurchaseOrderController::class, 'send']);
         Route::post('purchase-orders/{id}/receive', [\App\Http\Controllers\Api\Timber\TimberPurchaseOrderController::class, 'receive']);
 
+        // PO Items Received
+        Route::apiResource('po-items-received', \App\Http\Controllers\Api\Timber\PoItemReceivedController::class);
+
         // Material Requisitions
         Route::get('material-requisitions', [\App\Http\Controllers\Api\Timber\TimberMaterialRequisitionController::class, 'index']);
         Route::post('material-requisitions', [\App\Http\Controllers\Api\Timber\TimberMaterialRequisitionController::class, 'store']);
