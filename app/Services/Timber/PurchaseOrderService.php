@@ -157,8 +157,10 @@ class PurchaseOrderService
             $po->load('items.woodType', 'supplier', 'warehouse');
 
             return $po;
+        }
         });
     }
+
 
     public function confirmReceived(TimberPurchaseOrder $po): TimberPurchaseOrder
     {

@@ -260,7 +260,7 @@ class TimberDemoSeeder extends Seeder
                         'purchase_order_id' => $po->id,
                         'wood_type_id' => $woodType->id,
                         'quantity' => $item['qty'],
-                        'received_quantity' => $receivedQty,
+                        // 'received_quantity' => $receivedQty,
                         'unit' => $woodType->unit,
                         'unit_price' => $item['rate'],
                         'total_price' => $item['qty'] * $item['rate'],
