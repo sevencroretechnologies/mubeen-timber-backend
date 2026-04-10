@@ -199,4 +199,23 @@ class TimberPurchaseOrderController extends Controller
             return $this->error($e->getMessage(), 400);
         }
     }
+
+    public function generateInvoice(int $id)
+    {
+        try {
+            $po = TimberPurchaseOrder::with(['supplier', 'warehouse', 'items.woodType', 'company'])
+                ->forCurrentCompany()
+                ->findOrFail($id);
+
+            if (in_array($po->status->value, [\App\Enums\PurchaseOrderStatus::DRAFT->value, \App\Enums\PurchaseOrderStatus::CANCELLED->value])) {
+                return $this->error('Invoice can only be generated for confirmed orders', 400);
+            }
+
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('invoices.purchase-order', ['order' => $po]);
+
+            return $pdf->download("invoice-{$po->po_code}.pdf");
+        } catch (\Exception $e) {
+            return $this->error('Failed to generate invoice: ' . $e->getMessage(), 400);
+        }
+    }
 }
