@@ -84,18 +84,27 @@ class PoItemReceivedController extends Controller
                 'org_id',
             ]);
 
-            // Ensure only ONE row exists per Purchase Order. 
-            // If it exists, update it; if not, create it.
-            $record = PoItemReceived::updateOrCreate(
-                ['purchase_order_id' => $data['purchase_order_id']],
-                $data
-            );
+            // Find existing record for this Purchase Order
+            $record = PoItemReceived::where('purchase_order_id', $data['purchase_order_id'])->first();
+
+            if ($record) {
+                // Update existing record
+                $record->update([
+                    'warehouse_id'      => $data['warehouse_id'],
+                    'received_quantity' => $data['received_quantity'], // Should this be summed or overwritten? Overwriting as per user's "update" request.
+                    'received_date'     => $data['received_date'],
+                    'total_amount'      => $data['total_amount'],
+                ]);
+            } else {
+                // Create new record if not found
+                $record = PoItemReceived::create($data);
+            }
             
             $record->load(['purchaseOrder:id,po_code,status', 'warehouse:id,name']);
 
-            return $this->created($record, 'PO item received record processed successfully');
+            return $this->success($record, 'PO item received record processed successfully');
         } catch (\Exception $e) {
-            return $this->serverError('Failed to create PO item received: ' . $e->getMessage());
+            return $this->serverError('Failed to process PO item received: ' . $e->getMessage());
         }
     }
 

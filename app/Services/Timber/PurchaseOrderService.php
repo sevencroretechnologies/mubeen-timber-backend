@@ -122,16 +122,25 @@ class PurchaseOrderService
                     throw new \Exception('Item does not belong to this purchase order.');
                 }
 
-                $newReceivedQty = (float) $poItem->received_quantity + (float) $item['received_quantity'];
+                $receivedQty = (float) $item['received_quantity'];
+                
+                // Track current received total to prevent over-receiving
+                $newReceivedQty = (float) $poItem->received_quantity + $receivedQty;
+                
                 if ($newReceivedQty > (float) $poItem->quantity) {
-                if ((float) $item['quantity'] > (float) $poItem->quantity) {
-                    throw new \Exception("Cannot receive more than ordered for item #{$poItem->id}.");
+                    throw new \Exception("Cannot receive more than ordered for item #{$poItem->id}. Ordered: {$poItem->quantity}, Total Received: {$newReceivedQty}");
                 }
 
+                // Update item received quantity
+                $poItem->update([
+                    'received_quantity' => $newReceivedQty
+                ]);
+
+                // Record stock
                 $this->stockService->addStock(
                     $poItem->wood_type_id,
                     $po->warehouse_id,
-                    (float) $item['received_quantity'],
+                    $receivedQty,
                     'purchase_order',
                     $po->id,
                     (float) $poItem->unit_price,
@@ -139,36 +148,30 @@ class PurchaseOrderService
                 );
             }
 
-            // ALWAYS set PARTIAL_RECEIVED during individual item receiving (or just let the check below handle it)
-            // But user said: "ALWAYS set: $order->status = PurchaseOrderStatus::PARTIAL_RECEIVED; Do NOT set RECEIVED directly"
-            // Wait, "Confirm Received API: Update: $order->status = PurchaseOrderStatus::RECEIVED;"
-            // This means there might be a separate "Confirm Received" step? 
-            // The instructions say: "Receiving Logic: ALWAYS set PARTIAL_RECEIVED; Do NOT set RECEIVED directly"
-            // And then "Confirm Received API: Update: RECEIVED"
-            // Currently my logic checks if all items are fully received. 
-            
+            // ALWAYS update status to PARTIAL_RECEIVED during receipt logic
+            // The final 'RECEIVED' status is handled by confirmReceived()
             $po->update(['status' => PurchaseOrderStatus::PARTIAL_RECEIVED]);
-            // Mark as fully received
-            $po->update([
-                'status'        => 'received',
-                'received_date' => now()->toDateString(),
-            ]);
 
             $po->load('items.woodType', 'supplier', 'warehouse');
 
             return $po;
-        }
         });
     }
 
-
     public function confirmReceived(TimberPurchaseOrder $po): TimberPurchaseOrder
     {
-        if ($po->status !== PurchaseOrderStatus::PARTIAL_RECEIVED) {
-            throw new \Exception('Only partially received orders can be confirmed as fully received.');
+        // Validate all items: ensure fully received
+        foreach ($po->items as $item) {
+            if ((float) $item->received_quantity < (float) $item->quantity) {
+                throw new \Exception("Cannot confirm completion: Item #{$item->id} ({$item->woodType?->name}) is not fully received. Ordered: {$item->quantity}, Received: {$item->received_quantity}");
+            }
         }
 
-        $po->update(['status' => PurchaseOrderStatus::RECEIVED]);
+        $po->update([
+            'status'        => PurchaseOrderStatus::RECEIVED,
+            'received_date' => now()->toDateString()
+        ]);
+        
         $po->load('items.woodType', 'supplier', 'warehouse');
 
         return $po;
