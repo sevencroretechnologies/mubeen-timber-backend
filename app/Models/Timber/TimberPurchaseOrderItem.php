@@ -15,7 +15,6 @@ class TimberPurchaseOrderItem extends Model
         'purchase_order_id',
         'wood_type_id',
         'quantity',
-        'received_quantity',
         'unit',
         'unit_price',
         'total_price',
@@ -23,9 +22,8 @@ class TimberPurchaseOrderItem extends Model
     ];
 
     protected $casts = [
-        'quantity' => 'decimal:3',
-        'received_quantity' => 'decimal:3',
-        'unit_price' => 'decimal:2',
+        'quantity'    => 'decimal:3',
+        'unit_price'  => 'decimal:2',
         'total_price' => 'decimal:2',
     ];
 
@@ -37,15 +35,5 @@ class TimberPurchaseOrderItem extends Model
     public function woodType()
     {
         return $this->belongsTo(TimberWoodType::class, 'wood_type_id');
-    }
-
-    public function isFullyReceived(): bool
-    {
-        return (float) $this->received_quantity >= (float) $this->quantity;
-    }
-
-    public function pendingQuantity(): float
-    {
-        return max(0, (float) $this->quantity - (float) $this->received_quantity);
     }
 }

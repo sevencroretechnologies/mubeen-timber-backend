@@ -121,12 +121,9 @@ class PurchaseOrderService
                     throw new \Exception('Item does not belong to this purchase order.');
                 }
 
-                $newReceivedQty = (float) $poItem->received_quantity + (float) $item['quantity'];
-                if ($newReceivedQty > (float) $poItem->quantity) {
+                if ((float) $item['quantity'] > (float) $poItem->quantity) {
                     throw new \Exception("Cannot receive more than ordered for item #{$poItem->id}.");
                 }
-
-                $poItem->update(['received_quantity' => $newReceivedQty]);
 
                 $this->stockService->addStock(
                     $poItem->wood_type_id,
@@ -139,17 +136,11 @@ class PurchaseOrderService
                 );
             }
 
-            $allReceived = $po->items()->get()->every(fn ($i) => $i->isFullyReceived());
-            $anyReceived = $po->items()->where('received_quantity', '>', 0)->exists();
-
-            if ($allReceived) {
-                $po->update([
-                    'status' => 'received',
-                    'received_date' => now()->toDateString(),
-                ]);
-            } elseif ($anyReceived) {
-                $po->update(['status' => 'partial_received']);
-            }
+            // Mark as fully received
+            $po->update([
+                'status'        => 'received',
+                'received_date' => now()->toDateString(),
+            ]);
 
             $po->load('items.woodType', 'supplier', 'warehouse');
 

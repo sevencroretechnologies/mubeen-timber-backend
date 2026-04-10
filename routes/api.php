@@ -172,6 +172,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/companies', [CompanyMgmtController::class, 'store'])->middleware('permission:create_companies');
     Route::get('/companies/{company}', [CompanyMgmtController::class, 'show'])->middleware('permission:view_companies');
     Route::put('/companies/{company}', [CompanyMgmtController::class, 'update'])->middleware('permission:edit_companies');
+    Route::post('/companies/{company}', [CompanyMgmtController::class, 'update'])->middleware('permission:edit_companies'); // supports multipart/form-data with _method=PUT
     Route::delete('/companies/{company}', [CompanyMgmtController::class, 'destroy'])->middleware('permission:delete_companies');
 
     // ============================================
