@@ -23,10 +23,11 @@ return new class extends Migration
             $table->foreignId('org_id')->constrained('organizations')->onDelete('cascade');
             $table->string('company_name');
             $table->text('address')->nullable();
-            
-            // Optional: If companies need to track their relationship to a specific user (admin) or other metadata
-            //. $table->foreignId('user_id')->nullable()->constrained('users');
-            
+            $table->text('shipping_address')->nullable();
+            $table->string('company_phone', 30)->nullable();
+            $table->string('email')->nullable();
+            $table->string('website')->nullable();
+            $table->string('company_logo')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

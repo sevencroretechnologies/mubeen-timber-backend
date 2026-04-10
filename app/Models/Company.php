@@ -2,16 +2,24 @@
 
 namespace App\Models;
 
-use App\Traits\HasOrgAndCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Company extends Model
 {
-    use HasFactory, HasOrgAndCompany, SoftDeletes;
+    use HasFactory, SoftDeletes;
 
-    protected $fillable = ['org_id', 'company_name', 'address'];
+    protected $fillable = [
+        'org_id',
+        'company_name',
+        'address',
+        'shipping_address',
+        'company_phone',
+        'email',
+        'website',
+        'company_logo',
+    ];
 
     public function organization()
     {

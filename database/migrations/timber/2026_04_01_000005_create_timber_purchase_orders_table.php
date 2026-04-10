@@ -3,9 +3,9 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use App\Enums\PurchaseOrderStatus;
 
-return new class extends Migration
-{
+return new class extends Migration {
     public function up(): void
     {
         Schema::create('timber_purchase_orders', function (Blueprint $table) {
@@ -15,13 +15,13 @@ return new class extends Migration
             $table->unsignedBigInteger('warehouse_id');
             $table->date('order_date');
             $table->date('expected_delivery_date')->nullable();
-            $table->date('received_date')->nullable();
             $table->decimal('subtotal', 12, 2)->default(0.00);
             $table->decimal('tax_percentage', 5, 2)->default(0.00);
             $table->decimal('tax_amount', 12, 2)->default(0.00);
             $table->decimal('discount_amount', 12, 2)->default(0.00);
             $table->decimal('total_amount', 12, 2)->default(0.00);
-            $table->enum('status', ['draft', 'ordered', 'partial_received', 'received', 'cancelled'])->default('draft');
+            $table->enum('status', PurchaseOrderStatus::values())
+                ->default(PurchaseOrderStatus::DRAFT->value);
             $table->text('notes')->nullable();
             $table->text('terms')->nullable();
             $table->unsignedBigInteger('company_id');

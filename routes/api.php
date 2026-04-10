@@ -172,6 +172,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/companies', [CompanyMgmtController::class, 'store'])->middleware('permission:create_companies');
     Route::get('/companies/{company}', [CompanyMgmtController::class, 'show'])->middleware('permission:view_companies');
     Route::put('/companies/{company}', [CompanyMgmtController::class, 'update'])->middleware('permission:edit_companies');
+    Route::post('/companies/{company}', [CompanyMgmtController::class, 'update'])->middleware('permission:edit_companies'); // supports multipart/form-data with _method=PUT
     Route::delete('/companies/{company}', [CompanyMgmtController::class, 'destroy'])->middleware('permission:delete_companies');
 
     // ============================================
@@ -244,6 +245,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('purchase-orders', \App\Http\Controllers\Api\Timber\TimberPurchaseOrderController::class);
         Route::post('purchase-orders/{id}/send', [\App\Http\Controllers\Api\Timber\TimberPurchaseOrderController::class, 'send']);
         Route::post('purchase-orders/{id}/receive', [\App\Http\Controllers\Api\Timber\TimberPurchaseOrderController::class, 'receive']);
+        Route::post('purchase-orders/{id}/confirm-received', [\App\Http\Controllers\Api\Timber\TimberPurchaseOrderController::class, 'confirmReceived']);
+        Route::post('purchase-orders/{id}/cancel', [\App\Http\Controllers\Api\Timber\TimberPurchaseOrderController::class, 'cancel']);
 
         // PO Items Received
         Route::apiResource('po-items-received', \App\Http\Controllers\Api\Timber\PoItemReceivedController::class);

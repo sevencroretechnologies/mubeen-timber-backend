@@ -4,6 +4,7 @@ namespace App\Models\Timber;
 
 use App\Models\User;
 use App\Traits\HasOrgAndCompany;
+use App\Enums\PurchaseOrderStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -20,7 +21,6 @@ class TimberPurchaseOrder extends Model
         'warehouse_id',
         'order_date',
         'expected_delivery_date',
-        'received_date',
         'subtotal',
         'tax_percentage',
         'tax_amount',
@@ -37,8 +37,8 @@ class TimberPurchaseOrder extends Model
     protected $casts = [
         'order_date' => 'date',
         'expected_delivery_date' => 'date',
-        'received_date' => 'date',
         'subtotal' => 'decimal:2',
+        'status' => PurchaseOrderStatus::class,
         'tax_percentage' => 'decimal:2',
         'tax_amount' => 'decimal:2',
         'discount_amount' => 'decimal:2',
@@ -83,6 +83,15 @@ class TimberPurchaseOrder extends Model
             'subtotal' => $subtotal,
             'tax_amount' => $taxAmount,
             'total_amount' => $totalAmount,
+        ]);
+    }
+
+    public function canBeCancelled(): bool
+    {
+        return in_array($this->status, [
+            PurchaseOrderStatus::DRAFT,
+            PurchaseOrderStatus::ORDERED,
+            PurchaseOrderStatus::PARTIAL_RECEIVED,
         ]);
     }
 }

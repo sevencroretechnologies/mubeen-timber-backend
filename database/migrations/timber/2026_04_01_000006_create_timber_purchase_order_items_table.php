@@ -13,7 +13,6 @@ return new class extends Migration
             $table->unsignedBigInteger('purchase_order_id');
             $table->unsignedBigInteger('wood_type_id');
             $table->decimal('quantity', 12, 3);
-            $table->decimal('received_quantity', 12, 3)->default(0.000);
             $table->string('unit', 20);
             $table->decimal('unit_price', 10, 2);
             $table->decimal('total_price', 12, 2);

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\PurchaseOrderStatus;
 use App\Models\Company;
 use App\Models\Organization;
 use App\Models\Timber\TimberMaterialRequisition;
@@ -171,41 +172,41 @@ class TimberDemoSeeder extends Seeder
         // ============================================
         $purchaseOrders = [
             [
-                'supplier_idx' => 0, 'warehouse_idx' => 0, 'status' => 'received', 'po_code' => 'PO-2026-001',
+                'supplier_idx' => 0, 'warehouse_idx' => 0, 'status' => PurchaseOrderStatus::RECEIVED, 'po_code' => 'PO-2026-001',
                 'items' => [
                     ['wood_type_idx' => 0, 'qty' => 50, 'rate' => 2450],
                     ['wood_type_idx' => 2, 'qty' => 30, 'rate' => 2150],
                 ],
             ],
             [
-                'supplier_idx' => 1, 'warehouse_idx' => 1, 'status' => 'ordered', 'po_code' => 'PO-2026-002',
+                'supplier_idx' => 1, 'warehouse_idx' => 1, 'status' => PurchaseOrderStatus::ORDERED, 'po_code' => 'PO-2026-002',
                 'items' => [
                     ['wood_type_idx' => 3, 'qty' => 100, 'rate' => 1480],
                     ['wood_type_idx' => 4, 'qty' => 200, 'rate' => 780],
                 ],
             ],
             [
-                'supplier_idx' => 2, 'warehouse_idx' => 0, 'status' => 'draft', 'po_code' => 'PO-2026-003',
+                'supplier_idx' => 2, 'warehouse_idx' => 0, 'status' => PurchaseOrderStatus::DRAFT, 'po_code' => 'PO-2026-003',
                 'items' => [
                     ['wood_type_idx' => 1, 'qty' => 75, 'rate' => 1780],
                 ],
             ],
             [
-                'supplier_idx' => 3, 'warehouse_idx' => 3, 'status' => 'received', 'po_code' => 'PO-2026-004',
+                'supplier_idx' => 3, 'warehouse_idx' => 3, 'status' => PurchaseOrderStatus::RECEIVED, 'po_code' => 'PO-2026-004',
                 'items' => [
                     ['wood_type_idx' => 8, 'qty' => 200, 'rate' => 43],
                     ['wood_type_idx' => 9, 'qty' => 150, 'rate' => 33],
                 ],
             ],
             [
-                'supplier_idx' => 4, 'warehouse_idx' => 0, 'status' => 'ordered', 'po_code' => 'PO-2026-005',
+                'supplier_idx' => 4, 'warehouse_idx' => 0, 'status' => PurchaseOrderStatus::ORDERED, 'po_code' => 'PO-2026-005',
                 'items' => [
                     ['wood_type_idx' => 5, 'qty' => 60, 'rate' => 1180],
                     ['wood_type_idx' => 6, 'qty' => 40, 'rate' => 980],
                 ],
             ],
             [
-                'supplier_idx' => 5, 'warehouse_idx' => 0, 'status' => 'partial_received', 'po_code' => 'PO-2026-006',
+                'supplier_idx' => 5, 'warehouse_idx' => 0, 'status' => PurchaseOrderStatus::PARTIAL_RECEIVED, 'po_code' => 'PO-2026-006',
                 'items' => [
                     ['wood_type_idx' => 0, 'qty' => 80, 'rate' => 2480],
                     ['wood_type_idx' => 7, 'qty' => 50, 'rate' => 880],
@@ -235,7 +236,6 @@ class TimberDemoSeeder extends Seeder
                     'status' => $poData['status'],
                     'order_date' => now()->subDays(rand(5, 30)),
                     'expected_delivery_date' => now()->addDays(rand(5, 15)),
-                    'received_date' => $poData['status'] === 'received' ? now()->subDays(rand(1, 5)) : null,
                     'subtotal' => $subtotal,
                     'tax_percentage' => $taxPercentage,
                     'tax_amount' => $taxAmount,
@@ -248,9 +248,9 @@ class TimberDemoSeeder extends Seeder
             foreach ($poData['items'] as $item) {
                 $woodType = $createdWoodTypes[$item['wood_type_idx']];
                 $receivedQty = 0;
-                if ($poData['status'] === 'received') {
+                if ($poData['status'] === PurchaseOrderStatus::RECEIVED) {
                     $receivedQty = $item['qty'];
-                } elseif ($poData['status'] === 'partial_received') {
+                } elseif ($poData['status'] === PurchaseOrderStatus::PARTIAL_RECEIVED) {
                     $receivedQty = intval($item['qty'] * 0.5);
                 }
 

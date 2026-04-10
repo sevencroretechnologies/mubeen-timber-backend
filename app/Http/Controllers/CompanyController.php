@@ -9,6 +9,7 @@ use Exception;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class CompanyController extends Controller
 {
@@ -67,31 +68,47 @@ class CompanyController extends Controller
 
         $validator = Validator::make($request->all(), [
             // Company fields
-            'company_name' => 'required|string|max:255',
-            'address' => 'nullable|string',
+            'company_name'     => 'required|string|max:255',
+            'address'          => 'nullable|string',
+            'shipping_address' => 'nullable|string',
+            'company_phone'    => 'nullable|string|max:30',
+            'company_email'    => 'nullable|email|max:255',
+            'website'          => 'nullable|url|max:255',
+            'company_logo'     => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
 
             // User fields
             'user_name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'nullable|string|min:8',
+            'email'     => 'required|email|unique:users,email',
+            'password'  => 'nullable|string|min:8',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation Error',
-                'errors' => $validator->errors()
+                'errors'  => $validator->errors()
             ], 422);
         }
 
         try {
             DB::beginTransaction();
 
+            // Handle company logo upload
+            $logoPath = null;
+            if ($request->hasFile('company_logo')) {
+                $logoPath = $request->file('company_logo')->store('company_logos', 'public');
+            }
+
             // 1️⃣ Create Company with org_id (injected by middleware)
             $company = \App\Models\Company::create([
-                'org_id' => $orgId,
-                'company_name' => $request->company_name,
-                'address' => $request->address,
+                'org_id'           => $orgId,
+                'company_name'     => $request->company_name,
+                'address'          => $request->address,
+                'shipping_address' => $request->shipping_address,
+                'company_phone'    => $request->company_phone,
+                'email'            => $request->company_email,
+                'website'          => $request->website,
+                'company_logo'     => $logoPath,
             ]);
 
             // 2️⃣ Create User and STORE company_id
@@ -150,25 +167,52 @@ class CompanyController extends Controller
     public function update(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'org_id' => 'sometimes|exists:organizations,id',
-            'company_name' => 'sometimes|string|max:255',
-            'address' => 'nullable|string',
+            'org_id'           => 'sometimes|exists:organizations,id',
+            'company_name'     => 'sometimes|string|max:255',
+            'address'          => 'nullable|string',
+            'shipping_address' => 'nullable|string',
+            'company_phone'    => 'nullable|string|max:30',
+            'company_email'    => 'nullable|email|max:255',
+            'website'          => 'nullable|url|max:255',
+            'company_logo'     => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation Error',
-                'errors' => $validator->errors()
+                'errors'  => $validator->errors()
             ], 422);
         }
 
         try {
-            $company = $this->orgService->updateCompany($id, $request->all());
+            $company = \App\Models\Company::findOrFail($id);
+
+            $data = $request->only([
+                'org_id', 'company_name', 'address',
+                'shipping_address', 'company_phone', 'website',
+            ]);
+
+            // Map company_email → email
+            if ($request->filled('company_email')) {
+                $data['email'] = $request->company_email;
+            }
+
+            // Handle logo upload / removal
+            if ($request->hasFile('company_logo')) {
+                // Delete old logo if exists
+                if ($company->company_logo) {
+                    Storage::disk('public')->delete($company->company_logo);
+                }
+                $data['company_logo'] = $request->file('company_logo')->store('company_logos', 'public');
+            }
+
+            $company->update($data);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Company updated successfully',
-                'data' => $company
+                'data'    => $company->fresh(),
             ]);
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
