@@ -158,8 +158,8 @@ class TimberPurchaseOrderController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'items' => 'required|array|min:1',
-            'items.*.item_id' => 'required|integer|exists:timber_purchase_order_items,id',
-            'items.*.quantity' => 'required|numeric|min:0.001',
+            'items.*.id' => 'required|integer|exists:timber_purchase_order_items,id',
+        
         ]);
 
         if ($validator->fails()) {
@@ -171,6 +171,30 @@ class TimberPurchaseOrderController extends Controller
             $po = $this->purchaseOrderService->receiveGoods($po, $request->items);
 
             return $this->success($po, 'Goods received successfully');
+        } catch (\Exception $e) {
+            return $this->error($e->getMessage(), 400);
+        }
+    }
+
+    public function confirmReceived(int $id): JsonResponse
+    {
+        try {
+            $po = TimberPurchaseOrder::forCurrentCompany()->findOrFail($id);
+            $po = $this->purchaseOrderService->confirmReceived($po);
+
+            return $this->success($po, 'Purchase order marked as fully received');
+        } catch (\Exception $e) {
+            return $this->error($e->getMessage(), 400);
+        }
+    }
+
+    public function cancel(int $id): JsonResponse
+    {
+        try {
+            $po = TimberPurchaseOrder::forCurrentCompany()->findOrFail($id);
+            $po = $this->purchaseOrderService->cancel($po);
+
+            return $this->success($po, 'Purchase order cancelled successfully');
         } catch (\Exception $e) {
             return $this->error($e->getMessage(), 400);
         }
