@@ -200,11 +200,17 @@ class CompanyController extends Controller
 
             // Handle logo upload / removal
             if ($request->hasFile('company_logo')) {
-                // Delete old logo if exists
+                // Replace with new logo
                 if ($company->company_logo) {
                     Storage::disk('public')->delete($company->company_logo);
                 }
                 $data['company_logo'] = $request->file('company_logo')->store('company_logos', 'public');
+            } elseif ($request->input('remove_logo') == '1') {
+                // Remove logo without replacing
+                if ($company->company_logo) {
+                    Storage::disk('public')->delete($company->company_logo);
+                }
+                $data['company_logo'] = null;
             }
 
             $company->update($data);
