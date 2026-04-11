@@ -16,6 +16,7 @@ class PoItemReceived extends Model
     protected $fillable = [
         'purchase_order_id',
         'warehouse_id',
+        'wood_type_id',
         'received_quantity',
         'received_date',
         'total_amount',
@@ -37,5 +38,10 @@ class PoItemReceived extends Model
     public function warehouse()
     {
         return $this->belongsTo(TimberWarehouse::class, 'warehouse_id');
+    }
+
+    public function woodType()
+    {
+        return $this->belongsTo(TimberWoodType::class, 'wood_type_id');
     }
 }

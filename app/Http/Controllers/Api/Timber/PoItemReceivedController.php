@@ -19,7 +19,7 @@ class PoItemReceivedController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $query = PoItemReceived::with(['purchaseOrder:id,po_code,status', 'warehouse:id,name'])
+            $query = PoItemReceived::with(['purchaseOrder:id,po_code,status', 'warehouse:id,name', 'woodType:id,name'])
                 ->forCurrentCompany();
 
             if ($request->filled('purchase_order_id')) {
@@ -62,6 +62,7 @@ class PoItemReceivedController extends Controller
         $validator = Validator::make($request->all(), [
             'purchase_order_id' => 'required|integer|exists:timber_purchase_orders,id',
             'warehouse_id' => 'required|integer|exists:timber_warehouses,id',
+            'wood_type_id' => 'nullable|integer|exists:timber_wood_types,id',
             'received_quantity' => 'required|numeric|min:0.001',
             'received_date' => 'required|date',
             'total_amount' => 'nullable|numeric|min:0',
@@ -77,6 +78,7 @@ class PoItemReceivedController extends Controller
             $data = $request->only([
                 'purchase_order_id',
                 'warehouse_id',
+                'wood_type_id',
                 'received_quantity',
                 'received_date',
                 'total_amount',
@@ -100,7 +102,7 @@ class PoItemReceivedController extends Controller
                 $record = PoItemReceived::create($data);
             }
             
-            $record->load(['purchaseOrder:id,po_code,status', 'warehouse:id,name']);
+            $record->load(['purchaseOrder:id,po_code,status', 'warehouse:id,name', 'woodType:id,name']);
 
             return $this->success($record, 'PO item received record processed successfully');
         } catch (\Exception $e) {
@@ -114,7 +116,7 @@ class PoItemReceivedController extends Controller
     public function show(int $id): JsonResponse
     {
         try {
-            $record = PoItemReceived::with(['purchaseOrder', 'warehouse'])
+            $record = PoItemReceived::with(['purchaseOrder', 'warehouse', 'woodType'])
                 ->forCurrentCompany()
                 ->findOrFail($id);
 
@@ -132,6 +134,7 @@ class PoItemReceivedController extends Controller
         $validator = Validator::make($request->all(), [
             'purchase_order_id' => 'sometimes|required|integer|exists:timber_purchase_orders,id',
             'warehouse_id' => 'sometimes|required|integer|exists:timber_warehouses,id',
+            'wood_type_id' => 'nullable|integer|exists:timber_wood_types,id',
             'received_quantity' => 'sometimes|required|numeric|min:0.001',
             'received_date' => 'sometimes|required|date',
             'total_amount' => 'nullable|numeric|min:0',
@@ -149,6 +152,7 @@ class PoItemReceivedController extends Controller
             $record->update($request->only([
                 'purchase_order_id',
                 'warehouse_id',
+                'wood_type_id',
                 'received_quantity',
                 'received_date',
                 'total_amount',
@@ -156,7 +160,7 @@ class PoItemReceivedController extends Controller
                 'org_id',
             ]));
 
-            $record->load(['purchaseOrder:id,po_code,status', 'warehouse:id,name']);
+            $record->load(['purchaseOrder:id,po_code,status', 'warehouse:id,name', 'woodType:id,name']);
 
             return $this->success($record, 'PO item received updated successfully');
         } catch (\Exception $e) {

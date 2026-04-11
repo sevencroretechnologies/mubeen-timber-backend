@@ -185,7 +185,7 @@ class PurchaseOrderService
 
         return DB::transaction(function () use ($po) {
             $po->update(['status' => PurchaseOrderStatus::CANCELLED]);
-            $po->delete(); // Soft delete
+            // $po->delete(); // Soft delete
 
             return $po;
         });

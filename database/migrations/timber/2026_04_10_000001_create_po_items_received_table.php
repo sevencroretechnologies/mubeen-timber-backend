@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('purchase_order_id')->nullable()->constrained('timber_purchase_orders')->nullOnDelete();
             $table->foreignId('warehouse_id')->nullable()->constrained('timber_warehouses')->nullOnDelete();
+            $table->foreignId('wood_type_id')->nullable()->constrained('timber_wood_types')->nullOnDelete();
             $table->decimal('received_quantity', 12, 3);
             $table->date('received_date');
             $table->decimal('total_amount', 12, 2)->default(0.00)->nullable();
