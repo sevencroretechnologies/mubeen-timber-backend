@@ -56,18 +56,19 @@ class PoItemReceivedController extends Controller
 
     /**
      * Store a newly created received PO item.
+     * Matches by purchase_order_id + wood_type_id.
+     * Accumulates received_quantity (does NOT overwrite).
+     * Prevents receiving more than ordered.
      */
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
             'purchase_order_id' => 'required|integer|exists:timber_purchase_orders,id',
-            'warehouse_id' => 'required|integer|exists:timber_warehouses,id',
-            'wood_type_id' => 'nullable|integer|exists:timber_wood_types,id',
+            'warehouse_id'      => 'required|integer|exists:timber_warehouses,id',
+            'wood_type_id'      => 'required|integer|exists:timber_wood_types,id',
             'received_quantity' => 'required|numeric|min:0.001',
-            'received_date' => 'required|date',
-            'total_amount' => 'nullable|numeric|min:0',
-            'company_id' => 'nullable|integer',
-            'org_id' => 'nullable|integer',
+            'received_date'     => 'required|date',
+            'total_amount'      => 'nullable|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -75,33 +76,56 @@ class PoItemReceivedController extends Controller
         }
 
         try {
-            $data = $request->only([
-                'purchase_order_id',
-                'warehouse_id',
-                'wood_type_id',
-                'received_quantity',
-                'received_date',
-                'total_amount',
-                'company_id',
-                'org_id',
-            ]);
+            $poId       = $request->purchase_order_id;
+            $woodTypeId = $request->wood_type_id;
+            $newQty     = (float) $request->received_quantity;
 
-            // Find existing record for this Purchase Order
-            $record = PoItemReceived::where('purchase_order_id', $data['purchase_order_id'])->first();
+            // Validate against the ordered quantity for this specific item
+            $orderedQty = \App\Models\Timber\TimberPurchaseOrderItem::where('purchase_order_id', $poId)
+                ->where('wood_type_id', $woodTypeId)
+                ->sum('quantity');
 
-            if ($record) {
-                // Update existing record
-                $record->update([
-                    'warehouse_id'      => $data['warehouse_id'],
-                    'received_quantity' => $data['received_quantity'], // Should this be summed or overwritten? Overwriting as per user's "update" request.
-                    'received_date'     => $data['received_date'],
-                    'total_amount'      => $data['total_amount'],
-                ]);
-            } else {
-                // Create new record if not found
-                $record = PoItemReceived::create($data);
+            if ($orderedQty <= 0) {
+                return $this->error('This wood type is not part of the purchase order.', 422);
             }
-            
+
+            // Find existing record for this PO + wood type combination
+            $existing = PoItemReceived::where('purchase_order_id', $poId)
+                ->where('wood_type_id', $woodTypeId)
+                ->first();
+
+            $alreadyReceived = $existing ? (float) $existing->received_quantity : 0;
+            $totalAfter      = $alreadyReceived + $newQty;
+
+            if ($totalAfter > $orderedQty) {
+                return $this->error(
+                    "Cannot receive {$newQty}. Already received: {$alreadyReceived}, Ordered: {$orderedQty}. Max receivable now: " . ($orderedQty - $alreadyReceived),
+                    422
+                );
+            }
+
+            if ($existing) {
+                // Accumulate into existing record
+                $existing->update([
+                    'warehouse_id'      => $request->warehouse_id,
+                    'received_quantity' => $totalAfter,
+                    'received_date'     => $request->received_date,
+                    'total_amount'      => (float) ($existing->total_amount ?? 0) + (float) ($request->total_amount ?? 0),
+                ]);
+                $record = $existing;
+            } else {
+                $record = PoItemReceived::create([
+                    'purchase_order_id' => $poId,
+                    'warehouse_id'      => $request->warehouse_id,
+                    'wood_type_id'      => $woodTypeId,
+                    'received_quantity' => $newQty,
+                    'received_date'     => $request->received_date,
+                    'total_amount'      => $request->total_amount ?? 0,
+                    'company_id'        => $request->company_id ?? auth()->user()->company_id,
+                    'org_id'            => $request->org_id ?? auth()->user()->org_id,
+                ]);
+            }
+
             $record->load(['purchaseOrder:id,po_code,status', 'warehouse:id,name', 'woodType:id,name']);
 
             return $this->success($record, 'PO item received record processed successfully');

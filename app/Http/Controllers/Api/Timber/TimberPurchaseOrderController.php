@@ -25,6 +25,8 @@ class TimberPurchaseOrderController extends Controller
     {
         try {
             $query = TimberPurchaseOrder::with(['supplier:id,name,supplier_code', 'warehouse:id,name'])
+                ->withSum('items as total_ordered_qty', 'quantity')
+                ->withSum('receivedItems as total_received_qty', 'received_quantity')
                 ->forCurrentCompany();
 
             if ($request->filled('status')) {
@@ -46,13 +48,23 @@ class TimberPurchaseOrderController extends Controller
             }
 
             $perPage = $request->query('per_page', 15);
-            $orders = $query->latest()->paginate($perPage);
+            $orders  = $query->latest()->paginate($perPage);
+
+            // Compute is_fully_received flag on each record so the frontend
+            // doesn't have to compare potentially null/string withSum values.
+            $orders->getCollection()->transform(function ($order) {
+                $totalOrdered  = (float) ($order->total_ordered_qty  ?? 0);
+                $totalReceived = (float) ($order->total_received_qty ?? 0);
+                $order->is_fully_received = $totalOrdered > 0 && $totalReceived >= $totalOrdered;
+                return $order;
+            });
 
             return $this->paginated($orders, 'Purchase orders retrieved successfully');
         } catch (\Exception $e) {
             return $this->serverError('Failed to retrieve purchase orders: ' . $e->getMessage());
         }
     }
+
 
     public function store(Request $request): JsonResponse
     {
@@ -88,13 +100,23 @@ class TimberPurchaseOrderController extends Controller
     public function show(int $id): JsonResponse
     {
         try {
-            $po = TimberPurchaseOrder::with(['supplier', 'warehouse', 'items.woodType', 'createdBy:id,name'])
+            $po = TimberPurchaseOrder::with(['supplier', 'warehouse', 'items.woodType', 'receivedItems', 'createdBy:id,name'])
                 ->forCurrentCompany()
                 ->findOrFail($id);
 
+            // Merge received_quantity from po_items_received onto each item by wood_type_id
+            $receivedMap = $po->receivedItems->keyBy('wood_type_id');
+            $po->items->each(function ($item) use ($receivedMap) {
+                $item->received_quantity = $receivedMap->has($item->wood_type_id)
+                    ? (float) $receivedMap[$item->wood_type_id]->received_quantity
+                    : 0;
+            });
+
             return $this->success($po, 'Purchase order retrieved successfully');
-        } catch (\Exception $e) {
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->notFound('Purchase order not found');
+        } catch (\Exception $e) {
+            return $this->serverError('Failed to retrieve purchase order: ' . $e->getMessage());
         }
     }
 

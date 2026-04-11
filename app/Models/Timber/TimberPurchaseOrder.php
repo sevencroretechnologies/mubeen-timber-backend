@@ -3,6 +3,7 @@
 namespace App\Models\Timber;
 
 use App\Models\User;
+use App\Models\Timber\PoItemReceived;
 use App\Traits\HasOrgAndCompany;
 use App\Enums\PurchaseOrderStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -58,6 +59,11 @@ class TimberPurchaseOrder extends Model
     public function items()
     {
         return $this->hasMany(TimberPurchaseOrderItem::class, 'purchase_order_id');
+    }
+
+    public function receivedItems()
+    {
+        return $this->hasMany(PoItemReceived::class, 'purchase_order_id');
     }
 
     public function createdBy()
