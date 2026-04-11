@@ -91,7 +91,7 @@ class CustomerController extends Controller
             'opportunity_id' => 'nullable|exists:opportunities,id',
             'industry_id' => 'nullable|exists:industry_types,id',
             'email' => 'nullable|email',
-            'phone' => 'nullable|string',
+            'phone' => 'nullable|numeric',
         ]);
 
         $customer = Customer::create($validated);
@@ -133,7 +133,7 @@ class CustomerController extends Controller
             'opportunity_id' => 'nullable|exists:opportunities,id',
             'industry_id' => 'nullable|exists:industry_types,id',
             'email' => 'nullable|email',
-            'phone' => 'nullable|string',
+            'phone' => 'nullable|numeric',
         ]);
 
         $customer->update($validated);
