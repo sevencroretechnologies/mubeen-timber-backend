@@ -264,5 +264,8 @@ Route::middleware('auth:sanctum')->group(function () {
         // Stock Alerts
         Route::get('stock-alerts', [\App\Http\Controllers\Api\Timber\TimberStockAlertController::class, 'index']);
         Route::post('stock-alerts/{id}/resolve', [\App\Http\Controllers\Api\Timber\TimberStockAlertController::class, 'resolve']);
+
+        // Tax Rates
+        Route::apiResource('tax-rates', \App\Http\Controllers\Api\Timber\TaxRateController::class);
     });
 });
