@@ -10,6 +10,11 @@ class DashboardController extends Controller
 {
     public function __construct(private DashboardService $dashboardService) {}
 
+    public function index(): JsonResponse
+    {
+        return response()->json($this->dashboardService->getAll());
+    }
+
     public function stats(): JsonResponse
     {
         return response()->json($this->dashboardService->getStats());

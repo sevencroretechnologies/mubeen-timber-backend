@@ -2,13 +2,26 @@
 
 namespace App\Services\crm;
 
+use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\Opportunity;
+use App\Models\SalesTaskDetail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class DashboardService
 {
+    public function getAll(): array
+    {
+        return [
+            'stats' => $this->getStats(),
+            'sales_overview' => $this->getSalesOverview(),
+            'latest_opportunities' => $this->getLatestOpportunities(),
+            'tasks' => $this->getTasks(),
+            'total_customers' => $this->getTotalCustomers(),
+        ];
+    }
+
     public function getStats(): array
     {
         $now = now();
@@ -192,5 +205,55 @@ class DashboardService
         }
 
         return $data;
+    }
+
+    public function getLatestOpportunities(int $limit = 5): array
+    {
+        return Opportunity::with(['status:id,status_name', 'opportunityStage:id,name', 'customer:id,name'])
+            ->orderBy('created_at', 'desc')
+            ->limit($limit)
+            ->get()
+            ->map(function ($opp) {
+                return [
+                    'id' => $opp->id,
+                    'naming_series' => $opp->naming_series,
+                    'party_name' => $opp->party_name,
+                    'opportunity_amount' => $opp->opportunity_amount,
+                    'probability' => $opp->probability,
+                    'status_name' => $opp->status?->status_name,
+                    'stage_name' => $opp->opportunityStage?->name,
+                    'customer' => $opp->customer ? [
+                        'id' => $opp->customer->id,
+                        'name' => $opp->customer->name,
+                    ] : null,
+                    'created_at' => $opp->created_at?->toIso8601String(),
+                ];
+            })
+            ->toArray();
+    }
+
+    public function getTasks(): array
+    {
+        return SalesTaskDetail::with('salesTask:id,task_source_id,task_type_id,sales_assign_id')
+            ->where('status', '!=', 'Closed')
+            ->orderBy('date', 'asc')
+            ->limit(100)
+            ->get()
+            ->map(function ($task) {
+                return [
+                    'id' => $task->id,
+                    'date' => $task->date,
+                    'time' => $task->time,
+                    'description' => $task->description,
+                    'status' => $task->status,
+                    'created_at' => $task->created_at?->toIso8601String(),
+                ];
+            })
+            ->toArray();
+    }
+
+    public function getTotalCustomers(): int
+    {
+        return Customer::count();
     }
 }

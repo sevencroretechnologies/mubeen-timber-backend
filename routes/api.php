@@ -67,8 +67,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('users', [UsersController::class, 'index']);
 
     // ============================================
-    // CRM Dashboard (Legacy)
+    // CRM Dashboard
     // ============================================
+    Route::get('dashboard/crm', [CrmDashboardController::class, 'index']);
+    // Legacy endpoints
     Route::get('dashboard/crm/stats', [CrmDashboardController::class, 'stats']);
     Route::get('dashboard/crm/sales-overview', [CrmDashboardController::class, 'salesOverview']);
     Route::get('dashboard/crm/lead-conversion-funnel', [CrmDashboardController::class, 'leadConversionFunnel']);
