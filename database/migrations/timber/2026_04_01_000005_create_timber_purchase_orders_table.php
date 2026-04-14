@@ -17,6 +17,7 @@ return new class extends Migration {
             $table->date('expected_delivery_date')->nullable();
             $table->decimal('subtotal', 12, 2)->default(0.00);
             $table->decimal('tax_percentage', 5, 2)->default(0.00);
+            $table->foreignId('tax_group_id')->nullable()->constrained('tax_groups')->nullOnDelete();
             $table->decimal('tax_amount', 12, 2)->default(0.00);
             $table->decimal('discount_amount', 12, 2)->default(0.00);
             $table->decimal('total_amount', 12, 2)->default(0.00);
