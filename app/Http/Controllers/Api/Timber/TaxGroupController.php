@@ -274,6 +274,8 @@ class TaxGroupController extends Controller
         $detailsData = array_map(fn($id) => [
             'tax_group_id' => $taxGroup->id,
             'tax_rate_id' => $id,
+            'org_id' => $taxGroup->org_id,
+            'company_id' => $taxGroup->company_id,
             'created_at' => now(),
             'updated_at' => now(),
         ], $taxRateIds);
@@ -307,6 +309,8 @@ class TaxGroupController extends Controller
         $detailsData = array_map(fn($id) => [
             'tax_group_id' => $taxGroup->id,
             'tax_rate_id' => $id,
+            'org_id' => $taxGroup->org_id,
+            'company_id' => $taxGroup->company_id,
             'created_at' => now(),
             'updated_at' => now(),
         ], $taxRateIds);

@@ -14,6 +14,8 @@ class TaxGroupDetail extends Model
     protected $fillable = [
         'tax_group_id',
         'tax_rate_id',
+        'org_id',
+        'company_id',
     ];
 
     /**
