@@ -15,7 +15,10 @@ return new class extends Migration
             $table->id();
             $table->foreignId('tax_group_id')->constrained('tax_groups')->onDelete('cascade');
             $table->foreignId('tax_rate_id')->constrained('tax_rates')->onDelete('cascade');
+            $table->foreignId('org_id')->constrained('organizations')->onDelete('cascade');
+            $table->foreignId('company_id')->constrained('companies')->onDelete('cascade');
             $table->timestamps();
+            $table->softDeletes();
 
             // Unique constraint to prevent duplicate tax rates in same group
             $table->unique(['tax_group_id', 'tax_rate_id']);
@@ -23,6 +26,7 @@ return new class extends Migration
             // Indexes
             $table->index('tax_group_id');
             $table->index('tax_rate_id');
+            $table->index(['org_id', 'company_id']);
         });
     }
 
