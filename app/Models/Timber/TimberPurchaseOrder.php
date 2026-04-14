@@ -24,6 +24,7 @@ class TimberPurchaseOrder extends Model
         'expected_delivery_date',
         'subtotal',
         'tax_percentage',
+        'tax_group_id',
         'tax_amount',
         'discount_amount',
         'total_amount',
@@ -64,6 +65,11 @@ class TimberPurchaseOrder extends Model
     public function receivedItems()
     {
         return $this->hasMany(PoItemReceived::class, 'purchase_order_id');
+    }
+
+    public function taxGroup()
+    {
+        return $this->belongsTo(TaxGroup::class, 'tax_group_id');
     }
 
     public function createdBy()

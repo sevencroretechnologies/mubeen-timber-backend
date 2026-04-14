@@ -18,6 +18,7 @@ class TaxRate extends Model
         'name',
         'rate',
         'tax_type',
+        'is_active',
         'org_id',
         'company_id',
     ];
@@ -25,5 +26,22 @@ class TaxRate extends Model
     protected $casts = [
         'tax_type' => TaxType::class,
         'rate' => 'float',
+        'is_active' => 'boolean',
     ];
+
+    /**
+     * Get tax groups that use this tax rate.
+     */
+    public function taxGroups()
+    {
+        return $this->belongsToMany(TaxGroup::class, 'tax_group_details');
+    }
+
+    /**
+     * Scope: Active tax rates
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
 }

@@ -267,7 +267,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('stock-alerts', [\App\Http\Controllers\Api\Timber\TimberStockAlertController::class, 'index']);
         Route::post('stock-alerts/{id}/resolve', [\App\Http\Controllers\Api\Timber\TimberStockAlertController::class, 'resolve']);
 
-        // Tax Rates
+        // Tax Rates & Tax Groups
         Route::apiResource('tax-rates', \App\Http\Controllers\Api\Timber\TaxRateController::class);
+        Route::get('tax-groups/list', [\App\Http\Controllers\Api\Timber\TaxGroupController::class, 'list']);
+        Route::apiResource('tax-groups', \App\Http\Controllers\Api\Timber\TaxGroupController::class);
+
+        // Tax Group Details (manage tax rates within groups)
+        Route::prefix('tax-group-details')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\Timber\TaxGroupDetailController::class, 'index']);
+            Route::get('/{id}', [\App\Http\Controllers\Api\Timber\TaxGroupDetailController::class, 'show']);
+            Route::post('/', [\App\Http\Controllers\Api\Timber\TaxGroupDetailController::class, 'store']);
+            Route::delete('/{id}', [\App\Http\Controllers\Api\Timber\TaxGroupDetailController::class, 'destroy']);
+            Route::post('/bulk', [\App\Http\Controllers\Api\Timber\TaxGroupDetailController::class, 'bulkStore']);
+            Route::delete('/bulk', [\App\Http\Controllers\Api\Timber\TaxGroupDetailController::class, 'bulkDestroy']);
+        });
     });
 });

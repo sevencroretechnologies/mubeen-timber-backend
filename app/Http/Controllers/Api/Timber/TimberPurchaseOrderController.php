@@ -74,6 +74,7 @@ class TimberPurchaseOrderController extends Controller
             'order_date' => 'required|date',
             'expected_delivery_date' => 'nullable|date|after_or_equal:order_date',
             'tax_percentage' => 'nullable|numeric|min:0|max:100',
+            'tax_group_id' => 'nullable|integer|exists:tax_groups,id',
             'discount_amount' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string',
             'terms' => 'nullable|string',
@@ -100,7 +101,7 @@ class TimberPurchaseOrderController extends Controller
     public function show(int $id): JsonResponse
     {
         try {
-            $po = TimberPurchaseOrder::with(['supplier', 'warehouse', 'items.woodType', 'receivedItems', 'createdBy:id,name'])
+            $po = TimberPurchaseOrder::with(['supplier', 'warehouse', 'items.woodType', 'receivedItems', 'createdBy:id,name', 'taxGroup'])
                 ->forCurrentCompany()
                 ->findOrFail($id);
 
@@ -128,6 +129,7 @@ class TimberPurchaseOrderController extends Controller
             'order_date' => 'sometimes|required|date',
             'expected_delivery_date' => 'nullable|date',
             'tax_percentage' => 'nullable|numeric|min:0|max:100',
+            'tax_group_id' => 'nullable|integer|exists:tax_groups,id',
             'discount_amount' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string',
             'terms' => 'nullable|string',
