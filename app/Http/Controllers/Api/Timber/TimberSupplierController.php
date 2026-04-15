@@ -57,7 +57,7 @@ class TimberSupplierController extends Controller
             'bank_name' => 'nullable|string|max:100',
             'bank_account' => 'nullable|string|max:50',
             'ifsc_code' => 'nullable|string|max:20',
-            'payment_terms' => 'nullable|string|max:255',
+            // 'payment_terms' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {

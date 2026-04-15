@@ -29,7 +29,7 @@ class TimberSupplier extends Model
         'bank_name',
         'bank_account',
         'ifsc_code',
-        'payment_terms',
+        // 'payment_terms',
         'is_active',
         'company_id',
         'org_id',
