@@ -126,6 +126,9 @@ class OpportunityController extends Controller
             'items.*.qty' => 'nullable:items|numeric|min:0',
             'items.*.rate' => 'nullable:items|numeric|min:0',
             'items.*.amount' => 'nullable:items|numeric|min:0',
+            'products' => 'nullable|array',
+            'products.*.product_id' => 'required_with:products|integer|exists:products,id',
+            'products.*.quantity' => 'required_with:products|numeric|min:1',
             'contact_person' => 'nullable|string|max:255',
             'contact_email' => 'nullable|email|max:255',
             'contact_mobile' => 'nullable|string|max:20',
@@ -137,10 +140,20 @@ class OpportunityController extends Controller
             'opportunity_lost_reasons' => 'nullable|string|max:255',
         ]);
 
-        $opportunityData = collect($validated)->except(['items', 'opportunity_lost_reasons'])->toArray();
+        $opportunityData = collect($validated)->except(['items', 'products', 'opportunity_lost_reasons'])->toArray();
         $opportunity = Opportunity::create($opportunityData);
 
-        if (!empty($validated['items'])) {
+        if (!empty($validated['products'])) {
+            $itemsToSync = collect($validated['products'])->map(function ($p) {
+                return [
+                    'product_id' => $p['product_id'],
+                    'quantity'   => $p['quantity'] ?? 1,
+                    'rate'       => 0, // Fallback if no price available
+                    'amount'     => 0,
+                ];
+            })->toArray();
+            $opportunity->items()->createMany($itemsToSync);
+        } elseif (!empty($validated['items'])) {
             $itemsToSync = collect($validated['items'])->map(function ($item) {
                 return [
                     'product_id' => $item['product_id'],
@@ -205,6 +218,9 @@ class OpportunityController extends Controller
             'items.*.qty' => 'nullable:items|numeric|min:0',
             'items.*.rate' => 'nullable:items|numeric|min:0',
             'items.*.amount' => 'nullable:items|numeric|min:0',
+            'products' => 'nullable|array',
+            'products.*.product_id' => 'required_with:products|integer|exists:products,id',
+            'products.*.quantity' => 'required_with:products|numeric|min:1',
             'contact_person' => 'nullable|string|max:255',
             'contact_email' => 'nullable|email|max:255',
             'contact_mobile' => 'nullable|string|max:20',
@@ -217,10 +233,24 @@ class OpportunityController extends Controller
         ]);
 
         $opportunity = Opportunity::findOrFail($id);
-        $opportunityData = collect($validated)->except(['items', 'opportunity_lost_reasons'])->toArray();
+        $opportunityData = collect($validated)->except(['items', 'products', 'opportunity_lost_reasons'])->toArray();
         $opportunity->update($opportunityData);
 
-        if (array_key_exists('items', $validated)) {
+        if (array_key_exists('products', $validated)) {
+            $itemsToSync = collect($validated['products'])->map(function ($p) {
+                return [
+                    'product_id' => $p['product_id'],
+                    'quantity'   => $p['quantity'] ?? 1,
+                    'rate'       => 0,
+                    'amount'     => 0,
+                ];
+            })->toArray();
+
+            $opportunity->items()->delete();
+            if (!empty($itemsToSync)) {
+                $opportunity->items()->createMany($itemsToSync);
+            }
+        } elseif (array_key_exists('items', $validated)) {
             $itemsToSync = collect($validated['items'])->map(function ($item) {
                 return [
                     'product_id' => $item['product_id'],
