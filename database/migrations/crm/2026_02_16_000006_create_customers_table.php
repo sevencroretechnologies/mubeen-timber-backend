@@ -17,14 +17,16 @@ return new class extends Migration
             // Foreign Keys
             $table->string('customer_type')->nullable();
             $table->foreignId('customer_group_id')->nullable()->constrained('customer_groups')->nullOnDelete();
-            $table->foreignId('territory_id')->nullable()->constrained('territories')->nullOnDelete();
             $table->foreignId('lead_id')->nullable()->constrained('leads')->nullOnDelete();
-            $table->foreignId('opportunity_id')->nullable()->constrained('opportunities')->nullOnDelete();
-            $table->foreignId('industry_id')->nullable()->constrained('industry_types')->nullOnDelete();
+            
 
             // Other Fields
             $table->string('email')->nullable();
             $table->string('phone')->nullable();
+            $table->string('website')->nullable();
+            $table->string('whatsapp_no')->nullable();
+            $table->string('bank_name')->nullable();
+            $table->string('ifc_code')->nullable();
 
             $table->timestamps();
             $table->softDeletes();

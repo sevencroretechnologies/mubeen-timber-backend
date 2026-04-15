@@ -19,7 +19,6 @@ class CustomerController extends Controller
             $query = Customer::with(['customerGroup:id,name', 'territory:id,territory_name', 'industry:id,name'])
                 ->without([
                     'lead',
-                    'opportunity',
                 ]);
 
             if ($request->filled('search')) {
@@ -35,10 +34,7 @@ class CustomerController extends Controller
                 $query->where('customer_type', $request->customer_type);
             }
 
-            if ($request->filled('territory_id')) {
-                $query->where('territory_id', $request->territory_id);
-            }
-
+           
             $perPage = $request->query('per_page', 10);
             $queryParameters = Arr::except($request->query(), ['user_id']);
 
@@ -48,13 +44,8 @@ class CustomerController extends Controller
                 if ($item->customerGroup) {
                     $item->customer_group_name = $item->customerGroup->name;
                 }
-                if ($item->territory) {
-                    $item->territory_name = $item->territory->territory_name;
-                }
-                if ($item->industry) {
-                    $item->industry_name = $item->industry->name;
-                }
-                unset($item->customerGroup, $item->territory, $item->industry);
+               
+                unset($item->customerGroup);
                 return $item->makeHidden(['created_at', 'updated_at', 'deleted_at']);
             });
 
@@ -86,22 +77,20 @@ class CustomerController extends Controller
             'name' => 'required|string|max:255',
             'customer_type' => ['nullable', new Enum(CustomerType::class)],
             'customer_group_id' => 'nullable|exists:customer_groups,id',
-            'territory_id' => 'nullable|exists:territories,id',
             'lead_id' => 'nullable|exists:leads,id',
-            'opportunity_id' => 'nullable|exists:opportunities,id',
-            'industry_id' => 'nullable|exists:industry_types,id',
             'email' => 'nullable|email',
             'phone' => 'nullable|numeric',
+            'website' => 'nullable|url',
+            'whatsapp_no' => 'nullable|numeric',
+            'bank_name' => 'nullable|string|max:255',
+            'ifc_code' => 'nullable|string|max:50',
         ]);
 
         $customer = Customer::create($validated);
 
         $customer->load([
             'customerGroup',
-            'territory',
             'lead',
-            'opportunity',
-            'industry',
         ]);
 
         return response()->json($customer, 201);
@@ -111,10 +100,7 @@ class CustomerController extends Controller
     {
         $customer->load([
             'customerGroup',
-            'territory',
             'lead',
-            'opportunity',
-            'industry',
         ]);
 
         return response()->json($customer);
@@ -128,22 +114,20 @@ class CustomerController extends Controller
             'name' => 'sometimes|string|max:255',
             'customer_type' => ['nullable', new Enum(CustomerType::class)],
             'customer_group_id' => 'nullable|exists:customer_groups,id',
-            'territory_id' => 'nullable|exists:territories,id',
             'lead_id' => 'nullable|exists:leads,id',
-            'opportunity_id' => 'nullable|exists:opportunities,id',
-            'industry_id' => 'nullable|exists:industry_types,id',
             'email' => 'nullable|email',
             'phone' => 'nullable|numeric',
+            'website' => 'nullable|url',
+            'whatsapp_no' => 'nullable|numeric',
+            'bank_name' => 'nullable|string|max:255',
+            'ifc_code' => 'nullable|string|max:50',
         ]);
 
         $customer->update($validated);
 
         $customer->load([
             'customerGroup',
-            'territory',
             'lead',
-            'opportunity',
-            'industry',
         ]);
 
         return response()->json($customer);

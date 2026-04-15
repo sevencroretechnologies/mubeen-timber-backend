@@ -19,12 +19,13 @@ class Customer extends Model
         'name',
         'customer_type',
         'customer_group_id',
-        'territory_id',
         'lead_id',
-        'opportunity_id',
-        'industry_id',
         'email',
         'phone',
+        'website',
+        'whatsapp_no',
+        'bank_name',
+        'ifc_code',
     ];
 
     protected $casts = [
@@ -34,11 +35,6 @@ class Customer extends Model
     public function customerGroup(): BelongsTo
     {
         return $this->belongsTo(CustomerGroup::class);
-    }
-
-    public function territory(): BelongsTo
-    {
-        return $this->belongsTo(Territory::class);
     }
 
     public function lead(): BelongsTo
