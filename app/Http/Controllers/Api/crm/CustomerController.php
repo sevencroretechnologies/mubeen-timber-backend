@@ -23,10 +23,6 @@ class CustomerController extends Controller
             ])->without([
                 'lead',
             ]);
-            $query = Customer::with(['customerGroup:id,name'])
-                ->without([
-                    'lead',
-                ]);
 
             if ($request->filled('search')) {
                 $search = $request->search;
@@ -88,12 +84,7 @@ class CustomerController extends Controller
             'customer_type' => ['nullable', new Enum(CustomerType::class)],
             'customer_group_id' => 'nullable|exists:customer_groups,id',
             'lead_id' => 'nullable|exists:leads,id',
-            'email' => 'nullable|email',
-            'phone' => 'nullable|string|max:50',
             'website' => 'nullable|url',
-            'whatsapp_no' => 'nullable|string|max:50',
-            'bank_name' => 'nullable|string|max:255',
-            'ifc_code' => 'nullable|string|max:50',
         ]);
 
         $customer = Customer::create($validated);
@@ -147,12 +138,7 @@ class CustomerController extends Controller
             'customer_type' => ['nullable', new Enum(CustomerType::class)],
             'customer_group_id' => 'nullable|exists:customer_groups,id',
             'lead_id' => 'nullable|exists:leads,id',
-            'email' => 'nullable|email',
-            'phone' => 'nullable|string|max:50',
             'website' => 'nullable|url',
-            'whatsapp_no' => 'nullable|string|max:50',
-            'bank_name' => 'nullable|string|max:255',
-            'ifc_code' => 'nullable|string|max:50',
         ]);
 
         $customer->update($validated);

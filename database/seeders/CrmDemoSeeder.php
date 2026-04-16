@@ -6,6 +6,8 @@ use App\Models\Campaign;
 use App\Models\Company;
 use App\Models\Contact;
 use App\Models\Customer;
+use App\Models\CustomerBankDetail;
+use App\Models\CustomerContactDetail;
 use App\Models\CustomerContactEmail;
 use App\Models\CustomerContactPhone;
 use App\Models\CustomerGroup;
@@ -197,16 +199,21 @@ class CrmDemoSeeder extends Seeder
 
         $createdCustomers = [];
         foreach ($customers as $c) {
-            $createdCustomers[] = Customer::firstOrCreate(
-                ['name' => $c['name']],
-                [
+            $customer = Customer::create([
                     'name' => $c['name'],
                     'customer_type' => $c['customer_type'],
                     'customer_group_id' => $createdGroups[$c['group_idx']]->id,
-                    'email' => $c['email'],
-                    'phone' => $c['phone'],
-                ]
-            );
+                ]);
+            
+            // Create contact detail for the customer
+            $customer->contactDetails()->create([
+                'personal_email' => $c['email'],
+                'phone_no' => $c['phone'],
+                'org_id' => $customer->org_id,
+                'company_id' => $customer->company_id,
+            ]);
+
+            $createdCustomers[] = $customer;
         }
 
         // ============================================
