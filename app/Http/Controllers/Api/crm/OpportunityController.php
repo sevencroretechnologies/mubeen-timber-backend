@@ -237,32 +237,58 @@ class OpportunityController extends Controller
         $opportunity->update($opportunityData);
 
         if (array_key_exists('products', $validated)) {
-            $itemsToSync = collect($validated['products'])->map(function ($p) {
-                return [
-                    'product_id' => $p['product_id'],
-                    'quantity'   => $p['quantity'] ?? 1,
-                    'rate'       => 0,
-                    'amount'     => 0,
-                ];
-            })->toArray();
+            $incoming = collect($validated['products']);
+            $existing = $opportunity->items()->orderBy('id', 'asc')->get();
 
-            $opportunity->items()->delete();
-            if (!empty($itemsToSync)) {
-                $opportunity->items()->createMany($itemsToSync);
+            // Handle replacement/update of existing records to preserve IDs
+            foreach ($incoming as $index => $data) {
+                if (isset($existing[$index])) {
+                    $existing[$index]->update([
+                        'product_id' => $data['product_id'],
+                        'quantity'   => $data['quantity'] ?? 1,
+                        'rate'       => 0,
+                        'amount'     => 0,
+                    ]);
+                } else {
+                    $opportunity->items()->create([
+                        'product_id' => $data['product_id'],
+                        'quantity'   => $data['quantity'] ?? 1,
+                        'rate'       => 0,
+                        'amount'     => 0,
+                    ]);
+                }
+            }
+
+            // Remove any extra existing items
+            if ($existing->count() > $incoming->count()) {
+                $idsToDelete = $existing->slice($incoming->count())->pluck('id');
+                $opportunity->items()->whereIn('id', $idsToDelete)->delete();
             }
         } elseif (array_key_exists('items', $validated)) {
-            $itemsToSync = collect($validated['items'])->map(function ($item) {
-                return [
-                    'product_id' => $item['product_id'],
-                    'quantity'   => $item['qty'] ?? 1,
-                    'rate'       => $item['rate'] ?? 0,
-                    'amount'     => $item['amount'] ?? 0,
-                ];
-            })->toArray();
+            $incoming = collect($validated['items']);
+            $existing = $opportunity->items()->orderBy('id', 'asc')->get();
 
-            $opportunity->items()->delete();
-            if (!empty($itemsToSync)) {
-                $opportunity->items()->createMany($itemsToSync);
+            foreach ($incoming as $index => $data) {
+                if (isset($existing[$index])) {
+                    $existing[$index]->update([
+                        'product_id' => $data['product_id'],
+                        'quantity'   => $data['qty'] ?? 1,
+                        'rate'       => $data['rate'] ?? 0,
+                        'amount'     => $data['amount'] ?? 0,
+                    ]);
+                } else {
+                    $opportunity->items()->create([
+                        'product_id' => $data['product_id'],
+                        'quantity'   => $data['qty'] ?? 1,
+                        'rate'       => $data['rate'] ?? 0,
+                        'amount'     => $data['amount'] ?? 0,
+                    ]);
+                }
+            }
+
+            if ($existing->count() > $incoming->count()) {
+                $idsToDelete = $existing->slice($incoming->count())->pluck('id');
+                $opportunity->items()->whereIn('id', $idsToDelete)->delete();
             }
         }
 
