@@ -20,17 +20,22 @@ class Customer extends Model
         'customer_type',
         'customer_group_id',
         'lead_id',
-        'email',
-        'phone',
         'website',
-        'whatsapp_no',
-        'bank_name',
-        'ifc_code',
     ];
 
     protected $casts = [
         'customer_type' => CustomerType::class,
     ];
+
+    public function contactDetails(): HasMany
+    {
+        return $this->hasMany(CustomerContactDetail::class);
+    }
+
+    public function bankDetails(): HasMany
+    {
+        return $this->hasMany(CustomerBankDetail::class);
+    }
 
     public function customerGroup(): BelongsTo
     {

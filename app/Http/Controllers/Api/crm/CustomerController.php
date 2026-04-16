@@ -16,17 +16,25 @@ class CustomerController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $query = Customer::with(['customerGroup:id,name', 'territory:id,territory_name', 'industry:id,name'])
-                ->without([
-                    'lead',
-                ]);
+            $query = Customer::with([
+                'customerGroup:id,name',
+                'territory:id,territory_name',
+                'industry:id,name',
+                'contactDetails',
+                'bankDetails'
+            ])->without([
+                'lead',
+            ]);
 
             if ($request->filled('search')) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%")
-                        ->orWhere('phone', 'like', "%{$search}%");
+                        ->orWhereHas('contactDetails', function ($q) use ($search) {
+                            $q->where('personal_email', 'like', "%{$search}%")
+                                ->orWhere('company_email', 'like', "%{$search}%")
+                                ->orWhere('phone_no', 'like', "%{$search}%");
+                        });
                 });
             }
 
@@ -78,19 +86,34 @@ class CustomerController extends Controller
             'customer_type' => ['nullable', new Enum(CustomerType::class)],
             'customer_group_id' => 'nullable|exists:customer_groups,id',
             'lead_id' => 'nullable|exists:leads,id',
-            'email' => 'nullable|email',
-            'phone' => 'nullable|numeric',
             'website' => 'nullable|url',
-            'whatsapp_no' => 'nullable|numeric',
-            'bank_name' => 'nullable|string|max:255',
-            'ifc_code' => 'nullable|string|max:50',
         ]);
 
         $customer = Customer::create($validated);
 
+        if ($request->has('contact_details')) {
+            $contacts = collect($request->contact_details)->map(function ($detail) use ($customer) {
+                $detail['org_id'] = $customer->org_id;
+                $detail['company_id'] = $customer->company_id;
+                return $detail;
+            })->toArray();
+            $customer->contactDetails()->createMany($contacts);
+        }
+
+        if ($request->has('bank_details')) {
+            $banks = collect($request->bank_details)->map(function ($detail) use ($customer) {
+                $detail['org_id'] = $customer->org_id;
+                $detail['company_id'] = $customer->company_id;
+                return $detail;
+            })->toArray();
+            $customer->bankDetails()->createMany($banks);
+        }
+
         $customer->load([
             'customerGroup',
             'lead',
+            'contactDetails',
+            'bankDetails'
         ]);
 
         return response()->json($customer, 201);
@@ -101,6 +124,8 @@ class CustomerController extends Controller
         $customer->load([
             'customerGroup',
             'lead',
+            'contactDetails',
+            'bankDetails'
         ]);
 
         return response()->json($customer);
@@ -115,19 +140,36 @@ class CustomerController extends Controller
             'customer_type' => ['nullable', new Enum(CustomerType::class)],
             'customer_group_id' => 'nullable|exists:customer_groups,id',
             'lead_id' => 'nullable|exists:leads,id',
-            'email' => 'nullable|email',
-            'phone' => 'nullable|numeric',
             'website' => 'nullable|url',
-            'whatsapp_no' => 'nullable|numeric',
-            'bank_name' => 'nullable|string|max:255',
-            'ifc_code' => 'nullable|string|max:50',
         ]);
 
         $customer->update($validated);
 
+        if ($request->has('contact_details')) {
+            $customer->contactDetails()->delete();
+            $contacts = collect($request->contact_details)->map(function ($detail) use ($customer) {
+                $detail['org_id'] = $customer->org_id;
+                $detail['company_id'] = $customer->company_id;
+                return $detail;
+            })->toArray();
+            $customer->contactDetails()->createMany($contacts);
+        }
+
+        if ($request->has('bank_details')) {
+            $customer->bankDetails()->delete();
+            $banks = collect($request->bank_details)->map(function ($detail) use ($customer) {
+                $detail['org_id'] = $customer->org_id;
+                $detail['company_id'] = $customer->company_id;
+                return $detail;
+            })->toArray();
+            $customer->bankDetails()->createMany($banks);
+        }
+
         $customer->load([
             'customerGroup',
             'lead',
+            'contactDetails',
+            'bankDetails'
         ]);
 
         return response()->json($customer);

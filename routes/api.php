@@ -21,6 +21,8 @@ use App\Http\Controllers\Api\crm\CustomerGroupController;
 use App\Http\Controllers\Api\crm\PaymentTermController;
 use App\Http\Controllers\Api\crm\PriceListController;
 use App\Http\Controllers\Api\crm\CustomerController;
+use App\Http\Controllers\Api\crm\CustomerContactDetailController;
+use App\Http\Controllers\Api\crm\CustomerBankDetailController;
 use App\Http\Controllers\Api\crm\SalesTaskController;
 use App\Http\Controllers\Api\crm\SalesTaskDetailController;
 use App\Http\Controllers\Api\crm\TaskSourceController;
@@ -123,6 +125,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // CRM - Customers & Products
     // ============================================
     Route::apiResource('customers', CustomerController::class);
+    Route::apiResource('customer-contact-details', CustomerContactDetailController::class);
+    Route::apiResource('customer-bank-details', CustomerBankDetailController::class);
     Route::apiResource('customer-groups', CustomerGroupController::class);
     Route::apiResource('payment-terms', PaymentTermController::class);
     Route::apiResource('price-lists', PriceListController::class);

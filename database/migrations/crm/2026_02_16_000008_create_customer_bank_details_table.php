@@ -8,21 +8,16 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('customers', function (Blueprint $table) {
+        Schema::create('customer_bank_details', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('customer_id')->constrained('customers')->onDelete('cascade');
             $table->foreignId('org_id')->nullable()->constrained('organizations')->nullOnDelete();
             $table->foreignId('company_id')->nullable()->constrained('companies')->nullOnDelete();
-            $table->string('name');
-
-            // Foreign Keys
-            $table->string('customer_type')->nullable();
-            $table->foreignId('customer_group_id')->nullable()->constrained('customer_groups')->nullOnDelete();
-            $table->foreignId('lead_id')->nullable()->constrained('leads')->nullOnDelete();
-            
-
-            // Other Fields
-            $table->string('website')->nullable();
-
+            $table->string('bank_name')->nullable();
+            $table->string('branch_name')->nullable();
+            $table->string('account_no')->nullable();
+            $table->string('ifsc_code')->nullable();
+            $table->text('bank_address')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -30,6 +25,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('customers');
+        Schema::dropIfExists('customer_bank_details');
     }
 };

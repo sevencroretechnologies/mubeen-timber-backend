@@ -8,21 +8,15 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('customers', function (Blueprint $table) {
+        Schema::create('customer_contact_details', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('customer_id')->constrained('customers')->onDelete('cascade');
             $table->foreignId('org_id')->nullable()->constrained('organizations')->nullOnDelete();
             $table->foreignId('company_id')->nullable()->constrained('companies')->nullOnDelete();
-            $table->string('name');
-
-            // Foreign Keys
-            $table->string('customer_type')->nullable();
-            $table->foreignId('customer_group_id')->nullable()->constrained('customer_groups')->nullOnDelete();
-            $table->foreignId('lead_id')->nullable()->constrained('leads')->nullOnDelete();
-            
-
-            // Other Fields
-            $table->string('website')->nullable();
-
+            $table->string('phone_no')->nullable();
+            $table->string('whatsapp_no')->nullable();
+            $table->string('personal_email')->nullable();
+            $table->string('company_email')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -30,6 +24,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('customers');
+        Schema::dropIfExists('customer_contact_details');
     }
 };
