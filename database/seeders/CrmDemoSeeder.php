@@ -203,8 +203,6 @@ class CrmDemoSeeder extends Seeder
                     'name' => $c['name'],
                     'customer_type' => $c['customer_type'],
                     'customer_group_id' => $createdGroups[$c['group_idx']]->id,
-                    'territory_id' => $createdTerritories[$c['territory_idx']]->id,
-                    'industry_id' => $industryIT?->id,
                     'email' => $c['email'],
                     'phone' => $c['phone'],
                 ]

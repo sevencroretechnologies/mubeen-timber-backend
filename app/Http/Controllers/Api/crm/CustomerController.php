@@ -16,7 +16,7 @@ class CustomerController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $query = Customer::with(['customerGroup:id,name', 'territory:id,territory_name', 'industry:id,name'])
+            $query = Customer::with(['customerGroup:id,name'])
                 ->without([
                     'lead',
                 ]);
@@ -79,9 +79,9 @@ class CustomerController extends Controller
             'customer_group_id' => 'nullable|exists:customer_groups,id',
             'lead_id' => 'nullable|exists:leads,id',
             'email' => 'nullable|email',
-            'phone' => 'nullable|numeric',
+            'phone' => 'nullable|string|max:50',
             'website' => 'nullable|url',
-            'whatsapp_no' => 'nullable|numeric',
+            'whatsapp_no' => 'nullable|string|max:50',
             'bank_name' => 'nullable|string|max:255',
             'ifc_code' => 'nullable|string|max:50',
         ]);
@@ -116,9 +116,9 @@ class CustomerController extends Controller
             'customer_group_id' => 'nullable|exists:customer_groups,id',
             'lead_id' => 'nullable|exists:leads,id',
             'email' => 'nullable|email',
-            'phone' => 'nullable|numeric',
+            'phone' => 'nullable|string|max:50',
             'website' => 'nullable|url',
-            'whatsapp_no' => 'nullable|numeric',
+            'whatsapp_no' => 'nullable|string|max:50',
             'bank_name' => 'nullable|string|max:255',
             'ifc_code' => 'nullable|string|max:50',
         ]);

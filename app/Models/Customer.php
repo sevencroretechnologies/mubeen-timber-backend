@@ -42,15 +42,6 @@ class Customer extends Model
         return $this->belongsTo(Lead::class);
     }
 
-    public function opportunity(): BelongsTo
-    {
-        return $this->belongsTo(Opportunity::class);
-    }
-
-    public function industry(): BelongsTo
-    {
-        return $this->belongsTo(IndustryType::class, 'industry_id');
-    }
 
     public function projects(): HasMany
     {
